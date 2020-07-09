@@ -3,12 +3,7 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
-INCLUDEPATH += "D:\coding\SDL2\include"
-
-LIBS += -L"D:\coding\SDL2\lib"
-LIBS += -L"D:\coding\SDL2\bin"
-
-win32-gcc {
+win32-g++ {
 LIBS += -lmingw32
 }
 
@@ -16,7 +11,7 @@ LIBS += -lSDL2main
 LIBS += -lSDL2
 
 SOURCES += \
-        main.c \
+    main.c \
     cpu.c \
     cpu_alu.c \
     cpu_opcodes.c \
