@@ -193,44 +193,12 @@ void video_draw_line() {
 
     int fulltiles = 160/8;
 
-//    int16_t tile_num;
-//    uint8_t p1;// = vram[tileidx+linestart];
-//    uint8_t p2;// = vram[tileidx+linestart+1];
-
     int linexoffset = 0;
-
 
     if (xstart != 0) {
         fulltiles -=2;
-
-
         video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, PRIORITY_FALSE);
-
         linexoffset += 8;
-
-        // Get tile from map
-/*        if (VID_LCDC & LCDC_BGWIN_TILES) {
-            tile_num = vram[tileidx++];
-            p1 = vram[(tile_num << 4) + linestart];
-            p2 = vram[(tile_num << 4) + linestart + 1];
-        } else {
-            // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-            tile_num = (int8_t) vram[tileidx++];
-            vram_idx = (0x1000 + (tile_num << 4) + linestart) & 0x1FFF;
-            p1 = vram[vram_idx];
-            p2 = vram[vram_idx+1];
-
-
-        }
-
-        for (int i = xstart; i < 8; i++) {
-            linebuf[lineidx++] =
-                    ((p2 & (1 << (7-i))) >> (7 - i))
-                |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
-        }
-
-*/
-
     }
 
     // draw all the full tiles
@@ -247,31 +215,7 @@ void video_draw_line() {
     // draw any pixels that are left
 
     if (xstart != 0) {
-
         video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, PRIORITY_FALSE);
-
-/*
-        // Get tile from map
-        if (VID_LCDC & LCDC_BGWIN_TILES) {
-            tile_num = vram[tileidx++];
-            p1 = vram[(tile_num << 4) + linestart];
-            p2 = vram[(tile_num << 4) + linestart + 1];
-        } else {
-            // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-            tile_num = (int8_t) vram[tileidx++];
-            vram_idx = (0x1000 + (tile_num << 4) + linestart) & 0x1FFF;
-            p1 = vram[vram_idx];
-            p2 = vram[vram_idx+1];
-        }
-
-        for (int i = 0; i <= (7 - xstart); i++) {
-            linebuf[lineidx++] =
-                    ((p2 & (1 << (7-i))) >> (7 - i))
-                |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
-
-        }
-*/
-
     }
 
 
@@ -280,6 +224,7 @@ void video_draw_line() {
     for (int i = 0; i < 160; i++) {
         linebuf_final[i] = palette[linebuf[i]];
     }
+
     memcpy(&framebuffer32[160*video_line_num], linebuf_final , 160*sizeof(uint32_t));
 
 }
