@@ -127,8 +127,20 @@ void video_cycles(int cycles) {
 
 }
 
+uint8_t video_flip_tile_byte(uint8_t src) {
+    //    7 6 5 4 3 2 1 0
+    // -> 1 0 3 2 5 4 7 6
+    return ((src >> 0) & 1) << (7-1)
+        |  ((src >> 1) & 1) << (7-0)
+        |  ((src >> 2) & 1) << (7-3)
+        |  ((src >> 3) & 1) << (7-2)
+        |  ((src >> 4) & 1) << (7-5)
+        |  ((src >> 5) & 1) << (7-4)
+        |  ((src >> 6) & 1) << (7-7)
+        |  ((src >> 7) & 1) << (7-6);
+}
 
-void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t priority) {
+void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t sprites, uint8_t sprite_attr) {
     // Render pixels of a tile into a line buffer
     // tileidx: index in vram of the map
     // yoffset: y offset inside the tile,
@@ -136,13 +148,26 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
     // xstart: x position inside the tile
     // count: amount of pixels to render
     // priority: if 1, pixels will be forced, else only if previous value is 0
-    // video_render_tile (tileidx++, linestart, linebuf, lineidx, 0, 8);
+    // sprites: if 1, this will be treated as sprite data, i.e. unsigned tile IDs
 
     int16_t tile_num;
     uint8_t p1, p2; // tile bytes 1 and 2
+    uint8_t priority = ~(sprite_attr & SPRITE_ATTR_PRIO); // 0 = forced priority, 1 = behind bg
+
+
+    // Respect sprite VERTICAL FLIP attribute
+
+    if (sprite_attr & SPRITE_ATTR_YFLIP)
+        yoffset = 7 - yoffset;
+
+    yoffset = yoffset << 1;
+
 
     // Get tile from map
-    if (VID_LCDC & LCDC_BGWIN_TILES) {
+    if (sprites == TILES_SPRITES) {
+        p1 = vram[(tileidx << 4) + yoffset];
+        p2 = vram[(tileidx << 4) + yoffset + 1];
+    } else if (VID_LCDC & LCDC_BGWIN_TILES) {
         tile_num = vram[tileidx++];
         p1 = vram[(tile_num << 4) + yoffset];
         p2 = vram[(tile_num << 4) + yoffset + 1];
@@ -154,18 +179,33 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         p2 = vram[vram_idx+1];
     }
 
+    // Respect sprite HORIZONTAL FLIP attribute
+
+    if (sprite_attr & SPRITE_ATTR_XFLIP) {
+        p1 = video_flip_tile_byte(p1);
+        p2 = video_flip_tile_byte(p2);
+    }
+    uint8_t newpixel;
     for (int i = xstart; i < count; i++) {
+
+        newpixel =  ((p2 & (1 << (7-i))) >> (7 - i))
+                |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
         // respect priority parameter!
-        if (priority || ((!priority) && linebuf[linexoffset] == 0x00)) {
-            linebuf[linexoffset++] =
-                        ((p2 & (1 << (7-i))) >> (7 - i))
-                    |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
+        if (sprites == TILES_SPRITES) {
+            if ((priority || ( (!priority) && (linebuf[linexoffset] == 0x00) ) ) && newpixel) {
+                linebuf[linexoffset] = newpixel;
+            }
+        } else {
+            linebuf[linexoffset] = newpixel;
         }
+
+        linexoffset++;
     }
 }
 
 void video_draw_line() {
 
+    // printf("========== Drawing LINE: %d\n", video_line_num);
 
     // Calculate which tile SCX and SCY corresponds to
     uint16_t tileidx;
@@ -185,7 +225,7 @@ void video_draw_line() {
     uint8_t tilerow[8];
 
     int xstart = (VID_SCX & 0x07) ;
-    int yoffset = ((VID_SCY + video_line_num) & 0x07) << 1; // Get byte offset in tile to start drawing from
+    int yoffset = ((VID_SCY + video_line_num) & 0x07); // Get y position in tile to start from
 
 
     // Amount  of full tiles to render changes depending on whether
@@ -197,7 +237,7 @@ void video_draw_line() {
 
     if (xstart != 0) {
         fulltiles -=2;
-        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, PRIORITY_FALSE);
+        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, TILES_BG, 0);
         linexoffset += 8;
     }
 
@@ -207,7 +247,7 @@ void video_draw_line() {
 
         // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
 
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, PRIORITY_FALSE);
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, TILES_BG, 0);
         linexoffset += 8;
 
     }
@@ -215,7 +255,65 @@ void video_draw_line() {
     // draw any pixels that are left
 
     if (xstart != 0) {
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, PRIORITY_FALSE);
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, TILES_BG, 0);
+    }
+
+
+    // draw sprites
+
+    // check OAM if there are sprites that are visible, maximum of 10
+
+    int drawn_sprites = 0;
+    int sprite_idx = 0;
+    int video_tile_height = 8;      // no idea how to figure out yet whether sprites are 8 or 16 pixels high??
+
+    struct spritedata *cursprite = (struct spritedata*) oam;
+
+    int xcount;
+
+    while ((drawn_sprites < 10) && (sprite_idx < (160/4))) {
+
+        // iterate through OAM
+
+        // in 8x8 mode, a tile is visible if current line - Y position - 16 is less than 8 (or 16 in 16 mode)
+        // and it is also visible if X position != 0 and X position < 168
+        if (((unsigned) (video_line_num - (cursprite->y - 16)) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
+
+
+            // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
+
+            // Figure out Y position
+            yoffset = video_line_num - (cursprite->y - 16);
+
+            // Figure out X position and count
+            if (cursprite->x < 8) {
+
+                // left edge of the screen
+                linexoffset = 0;
+                xstart = 8 - cursprite->x;
+                xcount = cursprite->x;
+
+
+            } else if (cursprite->x > (160 + 8 - 8)) {
+
+                // right edge of the screen
+                linexoffset = cursprite->x - 8;
+                xstart = 1;
+                xcount = 160 - cursprite->x;
+            } else {
+                // it's a normal, fully visible sprite
+                linexoffset = cursprite->x - 8;
+                xstart = 0;
+                xcount = 8;
+            }
+
+            video_draw_tile(cursprite->tile, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
+
+            drawn_sprites++;
+        }
+
+        cursprite++;
+        sprite_idx++;
     }
 
 
@@ -232,6 +330,8 @@ void video_draw_line() {
 void video_update_framebuffer() {
 
     SDL_Delay(20);
+
+    printf("========== Drawing framebuffer to window ===============\n");
     video_surface = SDL_GetWindowSurface(video_window);
     memcpy(video_surface->pixels, framebuffer32, 160 * 144 * sizeof(uint32_t));
 
