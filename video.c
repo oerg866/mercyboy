@@ -127,6 +127,43 @@ void video_cycles(int cycles) {
 
 }
 
+
+void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t priority) {
+    // Render pixels of a tile into a line buffer
+    // tileidx: index in vram of the map
+    // yoffset: y offset inside the tile,
+    // linexoffset: destination x position inside line buffer
+    // xstart: x position inside the tile
+    // count: amount of pixels to render
+    // priority: if 1, pixels will be forced, else only if previous value is 0
+    // video_render_tile (tileidx++, linestart, linebuf, lineidx, 0, 8);
+
+    int16_t tile_num;
+    uint8_t p1, p2; // tile bytes 1 and 2
+
+    // Get tile from map
+    if (VID_LCDC & LCDC_BGWIN_TILES) {
+        tile_num = vram[tileidx++];
+        p1 = vram[(tile_num << 4) + yoffset];
+        p2 = vram[(tile_num << 4) + yoffset + 1];
+    } else {
+        // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
+        tile_num = (int8_t) vram[tileidx++];
+        int16_t vram_idx = (0x1000 + (tile_num << 4) + yoffset) & 0x1FFF;
+        p1 = vram[vram_idx];
+        p2 = vram[vram_idx+1];
+    }
+
+    for (int i = xstart; i < count; i++) {
+        // respect priority parameter!
+        if (priority || ((!priority) && linebuf[linexoffset] == 0x00)) {
+            linebuf[linexoffset++] =
+                        ((p2 & (1 << (7-i))) >> (7 - i))
+                    |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
+        }
+    }
+}
+
 void video_draw_line() {
 
 
@@ -139,15 +176,16 @@ void video_draw_line() {
         tileidx = 0x1800 + (((VID_SCY + video_line_num) >> 3) << 5) + (VID_SCX >> 3);
     }
 
+    // clear the linebuffer before drawing anything
 
-    int pixels_to_draw = 160;
+    memset(linebuf, 0, 160);
 
     // Get pixel in tile to start drawing from and draw first tile
 
     uint8_t tilerow[8];
 
     int xstart = (VID_SCX & 0x07) ;
-    int linestart = ((VID_SCY + video_line_num) & 0x07) << 1; // Get byte offset in tile to start drawing from
+    int yoffset = ((VID_SCY + video_line_num) & 0x07) << 1; // Get byte offset in tile to start drawing from
 
 
     // Amount  of full tiles to render changes depending on whether
@@ -155,19 +193,23 @@ void video_draw_line() {
 
     int fulltiles = 160/8;
 
-    int lineidx = 0;
+//    int16_t tile_num;
+//    uint8_t p1;// = vram[tileidx+linestart];
+//    uint8_t p2;// = vram[tileidx+linestart+1];
 
-    int16_t tile_num;
-    uint8_t p1;// = vram[tileidx+linestart];
-    uint8_t p2;// = vram[tileidx+linestart+1];
+    int linexoffset = 0;
 
-    int16_t vram_idx;
+
     if (xstart != 0) {
         fulltiles -=2;
 
 
+        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, PRIORITY_FALSE);
+
+        linexoffset += 8;
+
         // Get tile from map
-        if (VID_LCDC & LCDC_BGWIN_TILES) {
+/*        if (VID_LCDC & LCDC_BGWIN_TILES) {
             tile_num = vram[tileidx++];
             p1 = vram[(tile_num << 4) + linestart];
             p2 = vram[(tile_num << 4) + linestart + 1];
@@ -180,8 +222,6 @@ void video_draw_line() {
 
 
         }
-
-
 
         for (int i = xstart; i < 8; i++) {
             linebuf[lineidx++] =
@@ -189,7 +229,7 @@ void video_draw_line() {
                 |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
         }
 
-
+*/
 
     }
 
@@ -197,31 +237,20 @@ void video_draw_line() {
 
     for (int h = 0; h < fulltiles; h++) {
 
-        // Get tile from map
-        if (VID_LCDC & LCDC_BGWIN_TILES) {
-            tile_num = vram[tileidx++];
-            p1 = vram[(tile_num << 4) + linestart];
-            p2 = vram[(tile_num << 4) + linestart + 1];
-        } else {
-            // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-            tile_num = (int8_t) vram[tileidx++];
-            vram_idx = (0x1000 + (tile_num << 4) + linestart) & 0x1FFF;
-            p1 = vram[vram_idx];
-            p2 = vram[vram_idx+1];
-        }
+        // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
 
-        for (int i = 0; i < 8; i++) {
-            linebuf[lineidx++] =
-                        ((p2 & (1 << (7-i))) >> (7 - i))
-                    |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
-        }
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, PRIORITY_FALSE);
+        linexoffset += 8;
+
     }
 
     // draw any pixels that are left
 
     if (xstart != 0) {
 
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, PRIORITY_FALSE);
 
+/*
         // Get tile from map
         if (VID_LCDC & LCDC_BGWIN_TILES) {
             tile_num = vram[tileidx++];
@@ -241,6 +270,7 @@ void video_draw_line() {
                 |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
 
         }
+*/
 
     }
 

@@ -19,8 +19,12 @@ extern int video_line_num;
 extern SDL_Surface *video_surface;
 extern SDL_Window *video_window;
 
+#define PRIORITY_FALSE 0
+#define PRIORITY_TRUE 1
+
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
 void video_cycles(int cycles);
+void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t priority);
 void video_draw_line();
 void video_update_framebuffer();
 
