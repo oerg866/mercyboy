@@ -1,10 +1,12 @@
+#pragma once
+
 #ifndef CPU_H
 #define CPU_H
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint-gcc.h>
-#include <byteswap.h>
+
 #include "mem.h"
 #include "video.h"
 
@@ -45,6 +47,7 @@
 #elif defined(__LINUX__)
 
 #define bs bswap_16
+#include <byteswap.h>
 
 #endif
 
