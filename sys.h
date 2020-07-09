@@ -33,6 +33,10 @@
 
 #define sys_joypad    ram_io[0x00]
 
+extern uint16_t sys_dma_source;
+extern uint8_t sys_dma_counter;
+extern uint8_t sys_dma_busy;
+
 
 extern uint8_t sys_carttype;
 extern uint8_t sys_mbc1_s;
@@ -41,6 +45,7 @@ extern int16_t sys_timer_speed;
 
 extern uint8_t sys_buttons_all;
 
+void sys_dma_cycles(int cycles);
 void sys_cycles(int cycles);
 void sys_handle_joypads();
 

@@ -31,8 +31,14 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_TAC     0xFF07
 #define MEM_IF      0xFF0F
 #define MEM_LINE    0xFF44
+#define MEM_DMA     0xFF46
 
 int mem_init(uint8_t *romfile, int fsize);
 uint8_t* mem_addr(uint16_t addr);
+
+// These force a read without DMA checks. Used by DMA (so we don't block transfers blocked by DMA for the DMA...)
+
+uint8_t cpu_read8_force(uint16_t addr);
+uint16_t cpu_read16_force(uint16_t addr);
 
 #endif // MEM_H

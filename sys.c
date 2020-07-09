@@ -10,10 +10,38 @@ int16_t sys_timer_speed = 1024;
 
 uint8_t sys_buttons_all = 0;
 
+uint16_t sys_dma_source = 0;
+uint8_t sys_dma_counter = 0;
+uint8_t sys_dma_busy = 0;
+
 #define sys_timer_int cpu_ints[2]
 #define sys_joypad_int cpu_ints[4]
 
 #define TIMER_ENABLE (1<<2)
+
+
+void sys_dma_cycles(int cycles) {
+
+    // Process dma cycles, one byte per cycle
+    if (sys_dma_busy) {
+
+        // printf(">>>> DMA COPYING %x BYTES FROM %x\n", cycles, sys_dma_source + sys_dma_counter);
+
+        for (int i = 0; i < cycles; i++) {
+            oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
+            if (++sys_dma_counter == 160)
+                break;
+        }
+
+        if (sys_dma_counter == 160) {
+            // DMA has ended
+            sys_dma_source = 0;
+            sys_dma_counter = 0;
+            sys_dma_busy = 0;
+        }
+    }
+
+}
 
 void sys_cycles(int cycles) {
 

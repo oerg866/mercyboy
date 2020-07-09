@@ -154,7 +154,9 @@ uint8_t* mem_addr(uint16_t addr) {
 
 }
 
-uint8_t cpu_read8(uint16_t addr) {
+uint8_t cpu_read8_force(uint16_t addr) {
+
+
     if          (addr < 0x4000) {
 
         return rom1[addr];
@@ -208,11 +210,25 @@ uint8_t cpu_read8(uint16_t addr) {
     }
 
     return 0;
+
+}
+
+uint8_t cpu_read8(uint16_t addr) {
+
+    // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        printf("!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+
+    return cpu_read8_force(addr);
+
 }
 
 
-uint16_t cpu_read16(uint16_t addr) {
 
+uint16_t cpu_read16_force(uint16_t addr) {
     if          (addr < 0x4000) {
 
         return *(uint16_t*) &rom1[addr];
@@ -246,7 +262,26 @@ uint16_t cpu_read16(uint16_t addr) {
     return 0;
 }
 
+uint16_t cpu_read16(uint16_t addr) {
+
+    // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        printf("!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+
+    return cpu_read16_force(addr);
+}
+
 void cpu_write8(uint16_t addr, uint8_t data) {
+
+    // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        printf("!!!! WARNING: Ignored write to %x during DMA!\n", addr);
+        return;
+    }
 
     if          (addr < 0x2000) {
 
@@ -338,7 +373,12 @@ void cpu_write8(uint16_t addr, uint8_t data) {
          *      HANDLE TIMER STUFF
          */
 
-
+        if (addr == MEM_DMA) {
+            // OAM DMA
+            sys_dma_source = ((uint16_t) data) << 8;
+            sys_dma_counter = 0;
+            sys_dma_busy = 1;
+        }
 
         if (addr == MEM_TAC) {
             printf("TAC write: %02x\n", data);
