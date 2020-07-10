@@ -32,6 +32,28 @@ extern SDL_Window *video_window;
 #define SPRITE_ATTR_YFLIP   (1<<6)
 #define SPRITE_ATTR_XFLIP   (1<<5)
 
+#define VID_LCDC    ram_io[0x40]
+#define VID_SCY     ram_io[0x42]
+#define VID_SCX     ram_io[0x43]
+#define VID_LY      ram_io[0x44]
+#define VID_LYC     ram_io[0x45]
+#define VID_DMA     ram_io[0x46]
+#define VID_BGP     ram_io[0x47]
+#define VID_OBP0    ram_io[0x48]
+#define VID_OBP1    ram_io[0x49]
+#define VID_WY      ram_io[0x4a]
+#define VID_WX      ram_io[0x4b]
+#define VID_IE      ram_ie
+
+#define LCDC_LCDEN          (1<<7)
+#define LCDC_WIN_TILEMAP    (1<<6)
+#define LCDC_WINEN          (1<<5)
+#define LCDC_BGWIN_TILES    (1<<4)
+#define LCDC_BG_TILEMAP     (1<<3)
+#define LCDC_SPRITESIZE     (1<<2)
+#define LCDC_SPRITEEN       (1<<1)
+#define LCDC_BGWINEN        (1<<0)
+
 
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
 void video_cycles(int cycles);
