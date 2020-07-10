@@ -176,9 +176,12 @@ void op_ld_sp_hl() {
 
 void op_ldhl_sp_imm() {
     // ld hl, sp+n SIGNED!!
-    int newhl;
-    newhl = bs(*sp) + (int8_t) (cpu_read8(*pc+1));
-    regs16[REG_HL] = bs(newhl);
+
+    uint16_t newhl = bs(*sp);
+    uint16_t num = (uint16_t) cpu_read8(*pc+1);
+    if (num & 0x80) num |= 0xFF00; // Sign extension for negative numbers
+    alu_add16_imm8(&newhl, num);
+    *hl = bs(newhl);
     ipc(2); cycles(12);
 }
 
