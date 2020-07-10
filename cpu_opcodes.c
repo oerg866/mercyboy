@@ -423,7 +423,7 @@ void op_cp_r() {
     int src = (op & 0x07) + 2;
     if (src == 0x09) src = REG_A;
     uint8_t tmp = regs8[REG_A];
-    alu_sub8(&tmp, src);
+    alu_sub8(&tmp, regs8[src]);
     ipc(1); cycles(4);
 }
 
