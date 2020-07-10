@@ -178,7 +178,7 @@ void op_ldhl_sp_imm() {
     // ld hl, sp+n SIGNED!!
     int newhl;
     newhl = bs(*sp) + (int8_t) (cpu_read8(*pc+1));
-    newhl = bs(newhl);
+    regs16[REG_HL] = bs(newhl);
     ipc(2); cycles(12);
 }
 
