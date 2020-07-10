@@ -196,8 +196,6 @@ void video_draw_line() {
 
     // Get pixel in tile to start drawing from and draw first tile
 
-    uint8_t tilerow[8];
-
     int xstart = (VID_SCX & 0x07) ;
     int yoffset = ((VID_SCY + video_line_num) & 0x07); // Get y position in tile to start from
 
