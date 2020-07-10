@@ -1,4 +1,4 @@
-
+﻿
 #include "cpu.h"
 
 
@@ -66,8 +66,8 @@ void run() {
         op = cpu_read8(*pc);
 
 #ifdef CPU_VERBOSE
-            printf("tac: %02x ie: %02x, in: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
-              ram_io[0x07], cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
+            printf("tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+              ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
 #endif
         switch(op) {
 
@@ -515,19 +515,19 @@ uint16_t process_interrupts() {
 
         for (uint16_t i = 0; i < 5; i++) {
 
-            if ((ram_ie & (1 << i)) && (cpu_ints[i] == INT_PENDING)) {
+            if ((ram_ie & SYS_IF) & (1 << i)) {
                 // if an int is enabled and pending, service it
 
-                //printf("Servicing interrupt index %i\n", i);
+#ifdef SYS_VERBOSE
+                printf("Servicing interrupt index %i\n", i);
+#endif
 
-
-                // step 1: disable interrupt master enable and the interrupt for this;
-                // also set bit in IF flag
+                // step 1: disable interrupt master enable
+                // also clear bit in IF register
 
                 cpu_ie = 0;
-//                ram_ie &= ~(1 << i);
-                cpu_ints[i] = INT_SERVICED;
-                ram_io[0x0F] |= ((cpu_ints[i] & 0x01) << i);
+                sys_interrupt_clear(1 << i);
+
 
                 // step 2: push pc onto stack
 

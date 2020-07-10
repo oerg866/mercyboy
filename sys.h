@@ -27,11 +27,19 @@
 #define JOY_BUTTONS 0x10
 #define JOY_DPAD 0x20
 
-#define sys_timer     ram_io[0x05]
-#define sys_timer_mod ram_io[0x06]
-#define sys_timer_cfg ram_io[0x07]
+#define SYS_TIMER     ram_io[0x05]
+#define SYS_TIMER_MOD ram_io[0x06]
+#define SYS_TIMER_CFG ram_io[0x07]
 
-#define sys_joypad    ram_io[0x00]
+#define SYS_IF        ram_io[0x0f]
+
+#define SYS_JOYPAD    ram_io[0x00]
+
+#define INT_VBI       (1<<0)
+#define INT_LCD       (1<<1)
+#define INT_TIMER     (1<<2)
+#define INT_SERIAL    (1<<3)
+#define INT_JOYPAD    (1<<4)
 
 extern uint16_t sys_dma_source;
 extern uint8_t sys_dma_counter;
@@ -48,6 +56,9 @@ extern uint8_t sys_buttons_all;
 void sys_dma_cycles(int cycles);
 void sys_cycles(int cycles);
 void sys_handle_joypads();
+
+void sys_interrupt_req(uint8_t index);
+void sys_interrupt_clear(uint8_t index);
 
 uint8_t sys_read_joypad();
 

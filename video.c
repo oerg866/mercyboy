@@ -92,6 +92,9 @@ void video_cycles(int cycles) {
         if (video_line_num < 144) {
             // draw current line if we're in active display
             video_draw_line();
+        } else {
+            // request vblank interrupt
+            sys_interrupt_req(INT_VBI);
         }
 
         video_line_num++;
@@ -108,17 +111,11 @@ void video_cycles(int cycles) {
         printf("video_vbi: %u \n", video_vbi);
     }
 */
-    if ((video_line_num >= 144) && (video_vbi != INT_SERVICED)) {
-        video_vbi = INT_PENDING;
-    } else if (video_line_num == 0) {
-        if (video_vbi == INT_SERVICED) video_vbi = INT_NONE;
-    }
 
     if (video_frame_cycles <= 0) {
         // We're done, reset & draw screen
         video_line_num = 0;
         VID_LY = 0x00;
-//        video_vbi = INT_NONE;
         video_update_framebuffer();
         //sys_handle_joypads();
         video_frame_cycles = cycles_per_frame + video_frame_cycles;

@@ -46,14 +46,14 @@ void sys_dma_cycles(int cycles) {
 
 void sys_cycles(int cycles) {
 
-    if (sys_timer_cfg & TIMER_ENABLE)  {
+    if (SYS_TIMER_CFG & TIMER_ENABLE)  {
 
         // Do timer shenanigans
 
         sys_timer_cycles -= cycles;
 
 #ifdef SYS_VERBOSE
-        printf("sys_timer_speed = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_speed, sys_timer_cycles, sys_timer, sys_timer_mod);
+        printf("sys_timer_speed = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_speed, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
 #endif
 
         if (sys_timer_cycles <= 0) {
@@ -61,18 +61,12 @@ void sys_cycles(int cycles) {
 
             sys_timer_cycles = sys_timer_speed + sys_timer_cycles; // Reset amount of cycles
 
-            sys_timer++;
+            SYS_TIMER++;
 
-            if (sys_timer == 0) {
+            if (SYS_TIMER == 0) {
                 // Timer overflowed
-                sys_timer = sys_timer_mod;
-                sys_timer_int = INT_PENDING; // Flag interrupt as pending
-
-
-
-            } else {
-
-                if (sys_timer_int == INT_SERVICED) sys_timer_int = INT_NONE;
+                SYS_TIMER = SYS_TIMER_MOD;
+                sys_interrupt_req(INT_TIMER);
             }
 
             sys_timer_cycles = sys_timer_speed;
@@ -91,17 +85,17 @@ uint8_t sys_read_joypad() {
 
 
     // Handle DPAD if enabled
-    if (sys_joypad & JOY_DPAD) {
+    if (SYS_JOYPAD & JOY_DPAD) {
         result &= (sys_buttons_all >> 4);
     }
 
     // Handle buttons if enabled
-    if (sys_joypad & JOY_BUTTONS) {
+    if (SYS_JOYPAD & JOY_BUTTONS) {
         result &= (sys_buttons_all & 0x0F);
     }
 
 #ifdef SYS_VERBOSE
-    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, sys_joypad_int, ram_ie, sys_buttons_all);
+    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, SYS_IF & INT_JOYPAD, ram_ie, sys_buttons_all);
 #endif
 
     return result;
@@ -140,9 +134,21 @@ void sys_handle_joypads() {
 
     for (int i = 0; i < 8; i++) {
         if (((sys_buttons_old >> i) & 0x01) && !(((sys_buttons_all >> i) & 0x01))) {
-            sys_joypad_int = INT_PENDING;
+            // Req a joypad interupt
+            sys_interrupt_req(INT_JOYPAD);
             break;
         }
     }
 
+}
+
+
+void sys_interrupt_req(uint8_t index) {
+    // Requests an interrupt
+    SYS_IF |= index;
+}
+
+void sys_interrupt_clear(uint8_t index) {
+    // Clears an interrupt
+    SYS_IF &= ~index;
 }
