@@ -202,6 +202,9 @@ void op_pop16() {
     int dst = ((op >> 4) & 0x03) + 1;
     if (dst == 0x04) dst = REG_AF;
     regs16[dst] = bs(cpu_read16(bs(*sp)));
+
+    if (dst == REG_AF) regs8[REG_F] &= 0xF0; // Only upper 4 bits of flags register are writable.
+
     *sp = bs(bs(*sp) + 2);
     ipc(1); cycles(12);
 }
