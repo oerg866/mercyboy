@@ -205,7 +205,10 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
 void video_draw_line() {
 
-    // printf("========== Drawing LINE: %d\n", video_line_num);
+#ifdef VIDEO_VERBOSE
+
+    printf("========== Drawing LINE: %d\n", video_line_num);
+#endif
 
     // Calculate which tile SCX and SCY corresponds to
     uint16_t tileidx;
@@ -331,7 +334,10 @@ void video_update_framebuffer() {
 
     SDL_Delay(20);
 
+#ifdef VIDEO_VERBOSE
     printf("========== Drawing framebuffer to window ===============\n");
+#endif
+
     video_surface = SDL_GetWindowSurface(video_window);
     memcpy(video_surface->pixels, framebuffer32, 160 * 144 * sizeof(uint32_t));
 

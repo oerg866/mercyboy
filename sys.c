@@ -25,8 +25,9 @@ void sys_dma_cycles(int cycles) {
     // Process dma cycles, one byte per cycle
     if (sys_dma_busy) {
 
-        // printf(">>>> DMA COPYING %x BYTES FROM %x\n", cycles, sys_dma_source + sys_dma_counter);
-
+#ifdef SYS_VERBOSE
+        printf(">>>> DMA COPYING %x BYTES FROM %x\n", cycles, sys_dma_source + sys_dma_counter);
+#endif
         for (int i = 0; i < cycles; i++) {
             oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
             if (++sys_dma_counter == 160)
@@ -50,9 +51,11 @@ void sys_cycles(int cycles) {
         // Do timer shenanigans
 
         sys_timer_cycles -= cycles;
-/*        if (cpu_verbose)
-            printf("sys_timer_speed = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_speed, sys_timer_cycles, sys_timer, sys_timer_mod);
-*/
+
+#ifdef SYS_VERBOSE
+        printf("sys_timer_speed = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_speed, sys_timer_cycles, sys_timer, sys_timer_mod);
+#endif
+
         if (sys_timer_cycles <= 0) {
             // Increment timer when the amount of cycles per "tick" have been reached
 
@@ -96,7 +99,10 @@ uint8_t sys_read_joypad() {
     if (sys_joypad & JOY_BUTTONS) {
         result &= (sys_buttons_all & 0x0F);
     }
-//    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, sys_joypad_int, ram_ie, sys_buttons_all);
+
+#ifdef SYS_VERBOSE
+    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, sys_joypad_int, ram_ie, sys_buttons_all);
+#endif
 
     return result;
 }
@@ -138,6 +144,5 @@ void sys_handle_joypads() {
             break;
         }
     }
-//    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", sys_joypad, sys_joypad_int, ram_ie, sys_buttons_all);
 
 }

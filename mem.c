@@ -187,23 +187,24 @@ uint8_t cpu_read8_force(uint16_t addr) {
          */
 
         if (addr == MEM_JOYPAD) {
-//            printf("JOYPAD_READ\n");
             return sys_read_joypad();
         }
 
         if (addr == MEM_LINE) {
             return video_line_num & 0xFF;
         }
+
         return ram_io[addr - 0xFF00];
 
     } else if   (addr < 0xFFFF) {
+#ifdef SYS_VERBOSE
         if (addr == 0xFF81) {
             printf("drmario joy data: %02x\n", ram_int[0x01]);
             if (ram_int[0x01] != 0x00)  {
                 printf("Joy_trigger\n");
-//                cpu_verbose = 1;
             }
         }
+#endif
         return ram_int[addr - 0xFF80];
     } else if   (addr == 0xFFFF) {
         return ram_ie;

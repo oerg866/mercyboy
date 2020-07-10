@@ -63,13 +63,12 @@ void run() {
     while (1) {
 
 
-
         op = cpu_read8(*pc);
 
-        if (cpu_verbose)
-            printf("tac: %02x ie: %02x, in: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x\n",
-              ram_io[0x07], cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op);
-
+#ifdef CPU_VERBOSE
+            printf("tac: %02x ie: %02x, in: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+              ram_io[0x07], cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
+#endif
         switch(op) {
 
         case 0x78: op_ld_a_r(); break;          // ld a, r
