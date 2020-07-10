@@ -246,7 +246,11 @@ void op_add16_hl_r() {
 void op_add16_sp_imm() {
     // add sp, #n
     uint16_t reg = bs(*sp);
-    alu_add16(&reg, bs(cpu_read16(*pc+1)));
+
+    // Hack for negative offset until I come up with a more elegant solution
+    uint16_t num = (uint16_t) cpu_read8(*pc+1);
+    if (num & 0x80) num |= 0xFF00; // Sign extension for negative numbers
+    alu_add16_imm8(&reg, num);
     *sp = bs(reg);
     *flags &= (FLAG_H | FLAG_C);
     ipc(3); cycles(16);

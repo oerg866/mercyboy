@@ -31,6 +31,23 @@ void alu_add16(uint16_t *a, uint16_t b) {
     // c flag
     if ((result >> 16) > 0) *flags |= FLAG_C;
 }
+void alu_add16_imm8 (uint16_t *a, uint16_t b) {
+    // 2nd parameter is 16 bit for sign extension in negative numbers...
+    // It's hacky but I can't think of a clean solution right now
+
+    // Contrary to normal 16 bit arithmetic, Z flag is cleared.
+    *flags = 0;
+    // Contrary to normal 16 bit arithmetic, bit 3 is taken for half-carry
+    uint8_t halfcarry = (((*a & 0x0F) + (b & 0x0F)) << 1) & FLAG_H;
+
+    // c flag
+    // this goes through 8 bit ALU so this is a bit hacky.
+    if (((*a & 0xFF) + (b & 0xFF)) & 0x0100) *flags |= FLAG_C;
+    *flags |= halfcarry;
+
+    *a += b;
+}
+
 
 void alu_sub8(uint8_t *a, uint8_t b) {
     uint16_t result = *a - b;
