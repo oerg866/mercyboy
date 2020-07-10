@@ -82,7 +82,6 @@ void alu_xor(uint8_t *a, uint8_t b) {
 
 
 void alu_inc8(uint8_t *a) {
-//    uint16_t result = *a + 1;
     *flags = *flags & FLAG_C; // Keep C flag intact
     uint8_t halfcarry = (((*a & 0x0F) + 1) << 1) & FLAG_H;
     // z flag
@@ -101,7 +100,6 @@ inline void alu_inc16(uint16_t *a) {
 }
 
 void alu_dec8(uint8_t *a) {
-    uint16_t result = *a - 1;
     *a -= 1;
     *flags = (*flags & FLAG_C) | FLAG_N;
     uint8_t halfcarry = (((*a & 0x0F) - 1) << 1) & FLAG_H;

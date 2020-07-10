@@ -77,7 +77,7 @@ void op_ld_ind_hl_a() {
 
 void op_ld_ind_mem_a() {
     // ld (nn), a
-    cpu_write8(cpu_read16(*(pc+1)), regs8[REG_A]);
+    cpu_write8(cpu_read16(*pc+1), regs8[REG_A]);
     ipc(3); cycles(16);
 }
 
