@@ -22,8 +22,8 @@ void alu_add8(uint8_t *a, uint8_t b) {
 void alu_add16(uint16_t *a, uint16_t b) {
     uint32_t result = *a + b;
     *flags &= FLAG_Z;
-    *a += b;
     uint16_t halfcarry = (((*a & 0x0FFF) + (b & 0x0FFF)) >> (8-1)) & FLAG_H;
+    *a += b;
     // z flag is ignored
     // n is reset
     // h flag
