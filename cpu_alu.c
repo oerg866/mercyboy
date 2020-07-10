@@ -143,8 +143,8 @@ void alu_rlc(uint8_t *a) {
 
 void alu_rr(uint8_t *a) {
     // rr 9bit rotate a right, b0 to carry
-    uint8_t newcarry = (*a << 4) & FLAG_C; // get bit 7 into bit 4, reset everything else
-    *a = (*a >> 7) | ((*flags & FLAG_C) << 3); // Shift + old carry
+    uint8_t newcarry = (*a << 4) & FLAG_C; // get bit 0 into bit 4, reset everything else
+    *a = (*a >> 1) | ((*flags & FLAG_C) << 3); // Shift + old carry
     *flags = newcarry; // new carry
     if (*a == 0) *flags |= FLAG_Z; // set zero flag accordingly
 }
