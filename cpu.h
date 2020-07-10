@@ -76,6 +76,8 @@ extern uint8_t     cpu_ints[5];
 
 extern uint8_t     cpu_verbose;
 
+extern uint8_t     cpu_halted;
+
 // CPU.C
 
 void sr8(uint16_t reg, uint8_t n);

@@ -1,4 +1,4 @@
-﻿
+
 #include "cpu.h"
 
 
@@ -23,6 +23,8 @@ uint8_t     cpu_di_pending = 0;
 uint8_t     cpu_ints[5] = {0,0,0,0,0};
 
 uint8_t     cpu_verbose = 0;
+
+uint8_t     cpu_halted = 0;
 
 inline void sr8(uint16_t reg, uint8_t n) {
     // set reg 8 bit
@@ -65,8 +67,17 @@ void run() {
 
         op = cpu_read8(*pc);
 
+        if (*pc == 0xc33d) {
+            printf("hi\n");
+        }
+
+        if (*pc == 0xc34d) {
+            printf("hi\n");
+        }
+
+//#define CPU_VERBOSE
 #ifdef CPU_VERBOSE
-            printf("tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+            printf("tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
               ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
 #endif
         switch(op) {
@@ -510,7 +521,7 @@ void cycles(uint16_t n) {
 uint16_t process_interrupts() {
 
 
-    if (cpu_ie) {
+    if (cpu_ie || cpu_halted) {
 
 
         for (uint16_t i = 0; i < 5; i++) {
@@ -526,7 +537,8 @@ uint16_t process_interrupts() {
                 // also clear bit in IF register
 
                 cpu_ie = 0;
-                sys_interrupt_clear(1 << i);
+                if (!cpu_halted)
+                    sys_interrupt_clear(1 << i);
 
 
                 // step 2: push pc onto stack
