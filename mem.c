@@ -141,7 +141,7 @@ uint8_t* mem_addr(uint16_t addr) {
     } else if   (addr < 0xFF00) {
         return &ram_uio1[addr-0xFEA0];
     } else if   (addr < 0xFF4C) {
-        return &ram_io[addr - 0xFEA0];
+        return &ram_io[addr - 0xFF00];
     } else if   (addr < 0xFF80) {
         return &ram_uio2[addr - 0xFF4C];
     } else if   (addr < 0xFFFF) {
@@ -395,7 +395,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
 
         if (addr == 0xFF02 && data == 0x81) {
-            printf("%c", ram_io[0x01]);
+            printf("%c", cpu_read8_force(0xFF01));
         }
 
         ram_io[addr - 0xFF00] = data;
