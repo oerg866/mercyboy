@@ -28,6 +28,7 @@ extern uint8_t ram_ie;         // FFFF
 
 #define MEM_JOYPAD  0xFF00
 #define MEM_DIV     0xFF04
+#define MEM_TMA     0xFF06
 #define MEM_TAC     0xFF07
 #define MEM_IF      0xFF0F
 #define MEM_LINE    0xFF44

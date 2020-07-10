@@ -382,7 +382,10 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         }
 
         if (addr == MEM_TAC) {
+
+#ifdef SYS_VERBOSE
             printf("TAC write: %02x\n", data);
+#endif
             // If timer config reg has been written to, set config accordingly
             switch (data & 0x03) {
             case TIMER_4096:    sys_timer_speed = 1024; break;
@@ -390,9 +393,16 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             case TIMER_65536:   sys_timer_speed = 64;   break;
             case TIMER_16384:   sys_timer_speed = 256;  break;
             }
+            sys_timer_cycles = sys_timer_speed;
             data = 0xF8 | (data & 0x07);
         }
 
+        if (addr == MEM_TMA) {
+
+#ifdef SYS_VERBOSE
+            printf("TMA write: %02x\n", data);
+#endif
+        }
 
         if (addr == 0xFF02 && data == 0x81) {
             printf("%c", cpu_read8_force(0xFF01));

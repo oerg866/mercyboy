@@ -50,6 +50,7 @@ extern uint8_t sys_carttype;
 extern uint8_t sys_mbc1_s;
 extern uint8_t sys_romsize;
 extern int16_t sys_timer_speed;
+extern int16_t sys_timer_cycles;
 
 extern uint8_t sys_buttons_all;
 
