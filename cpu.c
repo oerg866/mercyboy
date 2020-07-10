@@ -242,6 +242,7 @@ void run() {
         case 0x9D: op_sbc_a_r(); break;
         case 0x9F: op_sbc_a_r(); break;
         case 0x9E: op_sbc_a_ind_hl(); break;   // sbc a, (hl)
+        case 0xDE: op_sbc_a_imm(); break;      // sbc a, #n
 
         case 0xA0: op_and_a_r(); break;         // and r
         case 0xA1: op_and_a_r(); break;         //
