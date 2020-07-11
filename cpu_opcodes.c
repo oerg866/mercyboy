@@ -268,24 +268,21 @@ void op_add16_sp_imm() {
 
 void op_adc_a_r() {
     // adc a, r
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
     int src = (op & 0x07) + 2;
     if (src == 0x09) src = REG_A;
-    alu_add8(&regs8[REG_A], regs8[src] + c);
+    alu_adc8(&regs8[REG_A], (uint16_t) regs8[src]);
     ipc(1); cycles(4);
 }
 
 void op_adc_a_ind_hl() {
     // adc a, (hl)
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
-    alu_add8(&regs8[REG_A], cpu_read8(bs(*hl)) + c);
+    alu_adc8(&regs8[REG_A], (uint16_t) cpu_read8(bs(*hl)));
     ipc(1); cycles(8);
 }
 
 void op_adc_a_imm() {
     // adc a, #n
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
-    alu_add8(&regs8[REG_A], cpu_read8(*pc+1) + c);
+    alu_adc8(&regs8[REG_A], (uint16_t) cpu_read8(*pc+1));
     ipc(2); cycles(8);
 }
 
@@ -323,24 +320,21 @@ void op_sub_a_imm() {
 
 void op_sbc_a_r() {
     // sub a, r
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
     int src = (op & 0x07) + 2;
     if (src == 0x09) src = REG_A;
-    alu_sub8(&regs8[REG_A], regs8[src] + c);
+    alu_sbc8(&regs8[REG_A], (uint16_t) regs8[src]);
     ipc(1); cycles(4);
 }
 
 void op_sbc_a_ind_hl() {
     // sub a, (hl)
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
-    alu_sub8(&regs8[REG_A], cpu_read8(bs(*hl)) + c);
+    alu_sbc8(&regs8[REG_A], (uint16_t) cpu_read8(bs(*hl)));
     ipc(1); cycles(8);
 }
 
 void op_sbc_a_imm() {
     // sub a, #n
-    uint16_t c = (regs8[REG_F] & FLAG_C) >> 4;
-    alu_sub8(&regs8[REG_A], cpu_read8(*pc+1) + c);
+    alu_sbc8(&regs8[REG_A], (uint16_t) cpu_read8(*pc+1));
     ipc(2); cycles(8);
 }
 

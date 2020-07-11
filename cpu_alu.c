@@ -19,6 +19,21 @@ void alu_add8(uint8_t *a, uint8_t b) {
     if ((result >> 8) > 0) *flags |= FLAG_C;
 }
 
+void alu_adc8(uint8_t *a, uint16_t b) {
+    uint8_t oldcarry = (*flags & FLAG_C) >> 4;
+    uint16_t result = *a + b + oldcarry;
+    *flags = 0;
+    uint8_t halfcarry = (((*a & 0x0F) + (b & 0x0F) + oldcarry) << 1) & FLAG_H;
+    *a += b + oldcarry;
+    // z flag
+    if (*a == 0) *flags |= FLAG_Z;
+    // n is reset
+    // h flag
+    *flags |= halfcarry;
+    // c flag
+    if ((result >> 8) > 0) *flags |= FLAG_C;
+}
+
 void alu_add16(uint16_t *a, uint16_t b) {
     uint32_t result = *a + b;
     *flags &= FLAG_Z;
@@ -62,7 +77,23 @@ void alu_sub8(uint8_t *a, uint8_t b) {
     *flags |= halfcarry;
     // c flag
     if ((result >> 8) > 0) *flags |= FLAG_C;
-  //  return (result & 0xFF);
+}
+
+void alu_sbc8(uint8_t *a, uint16_t b) {
+    uint8_t oldcarry = (*flags & FLAG_C) >> 4;
+    uint16_t result = *a - b - oldcarry;
+    *flags = FLAG_N;
+    uint8_t halfcarry = (((*a & 0x0F) - (b & 0x0F) - oldcarry) << 1) & FLAG_H;
+    *a -= b;
+    *a -= oldcarry;
+    // z flag
+
+    if (*a == 0) *flags |= FLAG_Z;
+    // n is reset
+    // h flag
+    *flags |= halfcarry;
+    // c flag
+    if ((result >> 8) > 0) *flags |= FLAG_C;
 }
 
 void alu_sub16(uint16_t *a, uint16_t b) {

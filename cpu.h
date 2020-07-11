@@ -103,9 +103,11 @@ void cpu_write16(uint16_t addr, uint16_t n);
 
 void alu_flags(uint8_t z, uint8_t n, uint8_t h, uint8_t c);
 void alu_add8(uint8_t *a, uint8_t b);
+void alu_adc8(uint8_t *a, uint16_t b);
 void alu_add16(uint16_t *a, uint16_t b);
 void alu_add16_imm8 (uint16_t *a, uint16_t b);
 void alu_sub8(uint8_t *a, uint8_t b);
+void alu_sbc8(uint8_t *a, uint16_t b);
 void alu_sub16(uint16_t *a, uint16_t b);
 void alu_and(uint8_t *a, uint8_t b);
 void alu_or(uint8_t *a, uint8_t b);
