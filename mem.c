@@ -388,12 +388,12 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 #endif
             // If timer config reg has been written to, set config accordingly
             switch (data & 0x03) {
-            case TIMER_4096:    sys_timer_speed = 1024; break;
-            case TIMER_262144:  sys_timer_speed = 16;   break;
-            case TIMER_65536:   sys_timer_speed = 64;   break;
-            case TIMER_16384:   sys_timer_speed = 256;  break;
+            case TIMER_4096:    sys_timer_interval = 1024; break;
+            case TIMER_262144:  sys_timer_interval = 16;   break;
+            case TIMER_65536:   sys_timer_interval = 64;   break;
+            case TIMER_16384:   sys_timer_interval = 256;  break;
             }
-            sys_timer_cycles = sys_timer_speed;
+            sys_timer_cycles = sys_timer_interval;
             data = 0xF8 | (data & 0x07);
         }
 

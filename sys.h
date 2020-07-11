@@ -27,6 +27,7 @@
 #define JOY_BUTTONS 0x10
 #define JOY_DPAD 0x20
 
+#define SYS_DIV       ram_io[0x04]
 #define SYS_TIMER     ram_io[0x05]
 #define SYS_TIMER_MOD ram_io[0x06]
 #define SYS_TIMER_CFG ram_io[0x07]
@@ -41,16 +42,19 @@
 #define INT_SERIAL    (1<<3)
 #define INT_JOYPAD    (1<<4)
 
+
+#define SYS_DIV_INTERVAL 256
+
 extern uint16_t sys_dma_source;
 extern uint8_t sys_dma_counter;
 extern uint8_t sys_dma_busy;
 
-
 extern uint8_t sys_carttype;
 extern uint8_t sys_mbc1_s;
 extern uint8_t sys_romsize;
-extern int16_t sys_timer_speed;
+extern int16_t sys_timer_interval;
 extern int16_t sys_timer_cycles;
+extern int16_t sys_div_cycles;
 
 extern uint8_t sys_buttons_all;
 

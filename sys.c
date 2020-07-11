@@ -5,8 +5,10 @@ uint8_t sys_mbc1_s = MBC1_16_8;
 uint8_t sys_romsize = 0;
 
 
+int16_t sys_div_cycles = SYS_DIV_INTERVAL;
+
 int16_t sys_timer_cycles = 1024;
-int16_t sys_timer_speed = 1024;
+int16_t sys_timer_interval = 1024;
 
 uint8_t sys_buttons_all = 0;
 
@@ -46,6 +48,16 @@ void sys_dma_cycles(int cycles) {
 
 void sys_cycles(int cycles) {
 
+    // Handle DIV counter which is always active
+
+    sys_div_cycles -= cycles;
+
+    if (sys_div_cycles <= 0) {
+        // Increment Divider register
+        SYS_DIV++;
+        sys_div_cycles = SYS_DIV_INTERVAL + sys_div_cycles;
+    }
+
     if (SYS_TIMER_CFG & TIMER_ENABLE)  {
 
         // Do timer shenanigans
@@ -53,13 +65,13 @@ void sys_cycles(int cycles) {
         sys_timer_cycles -= cycles;
 
 #ifdef SYS_VERBOSE
-        printf("sys_timer_speed = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_speed, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
+        printf("sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
 #endif
 
         if (sys_timer_cycles <= 0) {
             // Increment timer when the amount of cycles per "tick" have been reached
 
-            sys_timer_cycles = sys_timer_speed + sys_timer_cycles; // Reset amount of cycles
+            sys_timer_cycles = sys_timer_interval + sys_timer_cycles; // Reset amount of cycles
 
             SYS_TIMER++;
 
@@ -68,8 +80,6 @@ void sys_cycles(int cycles) {
                 SYS_TIMER = SYS_TIMER_MOD;
                 sys_interrupt_req(INT_TIMER);
             }
-
-            sys_timer_cycles = sys_timer_speed;
 
         }
 
