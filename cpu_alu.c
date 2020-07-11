@@ -206,7 +206,7 @@ void alu_rrc(uint8_t *a) {
 
 
 void alu_sl(uint8_t *a) {
-    *flags = (*a >> 3); // Copy bit 7 to c flag
+    *flags = (*a >> 3) & FLAG_C; // Copy bit 7 to c flag
     *a = (*a << 1);
     if (*a == 0) *flags |= FLAG_Z;
 }
