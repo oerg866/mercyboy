@@ -148,9 +148,9 @@ inline void alu_inc16(uint16_t *a) {
 }
 
 void alu_dec8(uint8_t *a) {
-    *a -= 1;
     *flags = (*flags & FLAG_C) | FLAG_N;
     uint8_t halfcarry = (((*a & 0x0F) - 1) << 1) & FLAG_H;
+    *a -= 1;
     // z flag
     if (*a == 0) *flags |= FLAG_Z;
     // n is reset
