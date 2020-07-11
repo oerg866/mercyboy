@@ -627,6 +627,8 @@ void op_stop() {
 void op_rla() {
     // rla
     alu_rl(&regs8[REG_A]);
+    // rla short version resets zero (the others do not!)
+    *flags &= ~(FLAG_Z);
     ipc(1); cycles(4);
 }
 
@@ -647,6 +649,8 @@ void op_rl_ind_hl() {
 void op_rlca() {
     // rlca
     alu_rlc(&regs8[REG_A]);
+    // rlca short version resets zero (the others do not!)
+    *flags &= ~(FLAG_Z);
     ipc(1); cycles(4);
 }
 
@@ -668,6 +672,8 @@ void op_rlc_ind_hl() {
 void op_rra() {
     // rra
     alu_rr(&regs8[REG_A]);
+    // rra short version resets zero (the others do not!)
+    *flags &= ~(FLAG_Z);
     ipc(1); cycles(4);
 }
 
@@ -688,6 +694,8 @@ void op_rr_ind_hl() {
 void op_rrca() {
     // rrca
     alu_rrc(&regs8[REG_A]);
+    // rrca short version resets zero (the others do not!)
+    *flags &= ~(FLAG_Z);
     ipc(1); cycles(4);
 }
 
