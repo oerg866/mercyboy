@@ -38,7 +38,7 @@ void op_ld_r_r() {
 
 
 void op_ld_a_r() {
-    int src = (op & 0x07) + 2;
+    int src = op_get_operand8_a(op, 0);
     regs8[REG_A] = regs8[src];
     ipc(1); cycles(4);
 }
