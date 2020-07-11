@@ -453,14 +453,14 @@ void cpu_ext_op() {
     case 0x17: op_rl_r(); break;
     case 0x16: op_rl_ind_hl(); break;       // rl (hl)
 
-    case 0x08: op_rlc_r(); break;           // rrc r
-    case 0x09: op_rlc_r(); break;
-    case 0x0A: op_rlc_r(); break;
-    case 0x0B: op_rlc_r(); break;
-    case 0x0C: op_rlc_r(); break;
-    case 0x0D: op_rlc_r(); break;
-    case 0x0F: op_rlc_r(); break;
-    case 0x0E: op_rlc_ind_hl(); break;      // rrc (hl)
+    case 0x08: op_rrc_r(); break;           // rrc r
+    case 0x09: op_rrc_r(); break;
+    case 0x0A: op_rrc_r(); break;
+    case 0x0B: op_rrc_r(); break;
+    case 0x0C: op_rrc_r(); break;
+    case 0x0D: op_rrc_r(); break;
+    case 0x0F: op_rrc_r(); break;
+    case 0x0E: op_rrc_ind_hl(); break;      // rrc (hl)
 
     case 0x18: op_rr_r(); break;            // rr r
     case 0x19: op_rr_r(); break;
