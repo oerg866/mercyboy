@@ -20,8 +20,9 @@ uint8_t ram_io[0x4C];   // FFF0 - FF4B
 uint8_t ram_uio2[0x34]; // FE4C - FF7F
 uint8_t ram_int[0x80];  // FF80 - FFFE
 
-uint8_t ram_ie;         // FFFF
+uint8_t ram_ext[0x20000]; // Up to 128K
 
+uint8_t ram_ie;         // FFFF
 
 int mem_init(uint8_t *file, int fsize) {
 
@@ -31,6 +32,7 @@ int mem_init(uint8_t *file, int fsize) {
 
     memcpy(rom1, romfile, fsize);
 
+    ram2 = &ram_ext[0];
     rom2 = &romfile[0x4000];
 
     ram_io[0x05] = 0x00; // TIMA
@@ -147,21 +149,22 @@ uint8_t* mem_addr(uint16_t addr) {
 
 uint8_t cpu_read8_force(uint16_t addr) {
 
+    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
+                        | (sys_carttype == CT_MBC1RAM)
+                        | (sys_carttype == CT_MBC1RAMBATT);
 
     if          (addr < 0x4000) {
 
         return rom1[addr];
 
     } else if   (addr < 0x8000) {
-
         return rom2[addr-0x4000];
-
     } else if   (addr < 0xA000) {
         // VRAM write 8000 - 9FFF
         return vram[addr - 0x8000];
     } else if   (addr < 0xC000) {
-        // RAM 2 handler not implemented yet
-        // addr - 0xA000
+        if (sys_ismbc1 && sys_extmem_en)
+            return ram2[addr-0xA000];
     } else if   (addr < 0xE000) {
         return ram1[addr-0xC000];
     } else if   (addr < 0xFE00) {
@@ -179,10 +182,6 @@ uint8_t cpu_read8_force(uint16_t addr) {
 
         if (addr == MEM_JOYPAD) {
             return sys_read_joypad();
-        }
-
-        if (addr == MEM_LINE) {
-            return video_line_num & 0xFF;
         }
 
         return ram_io[addr - 0xFF00];
@@ -221,20 +220,22 @@ uint8_t cpu_read8(uint16_t addr) {
 
 
 uint16_t cpu_read16_force(uint16_t addr) {
+
+    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
+                        | (sys_carttype == CT_MBC1RAM)
+                        | (sys_carttype == CT_MBC1RAMBATT);
+
     if          (addr < 0x4000) {
-
         return *(uint16_t*) &rom1[addr];
-
-    } else if   (addr < 0x8000) {
-
+    } else if   (addr < 0x8000) {        
         return *(uint16_t*) &rom2[addr-0x4000];
-
     } else if   (addr < 0xA000) {
         // VRAM write 8000 - 9FFF
         return *(uint16_t*) &vram[addr - 0x8000];
     } else if   (addr < 0xC000) {
-        // RAM 2 handler not implemented yet
-        // addr - 0xA000
+        // RAM 2
+        if (sys_ismbc1 && sys_extmem_en)
+            return *(uint16_t*) &ram2[addr-0xA000];
     } else if   (addr < 0xE000) {
         return *(uint16_t*) &ram1[addr-0xC000];
     } else if   (addr < 0xFE00) {
@@ -275,48 +276,75 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         return;
     }
 
+    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
+                        | (sys_carttype == CT_MBC1RAM)
+                        | (sys_carttype == CT_MBC1RAMBATT);
+
     if          (addr < 0x2000) {
 
-    } else if   (addr < 0x4000) {
-        if     ((sys_carttype == CT_MBC1)
-            |   (sys_carttype == CT_MBC1RAM)
-            |   (sys_carttype == CT_MBC1RAMBATT)) {
+        if (sys_ismbc1) {
+            // 0x0000 - 0x1FFF - RAM Enable
+            // xAh = enable, else disable
+            sys_extmem_en = ((data & 0x0A) == 0x0A);
 
-            // 0x2000 - 0x3FFF will select an appropriate ROM bank at 4000-7FFF
+#ifdef SYS_VERBOSE
+            printf("BANKING: MBC1 RAM Enable: %02x\n", sys_extmem_en);
+#endif
+
+        }
+
+    } else if   (addr < 0x4000) {
+
+        if (sys_ismbc1) {
+
+            // 0x2000 - 0x3FFF ROM Bank Number
+            // Selects lower 5 bits of the ROM bank number. Bank 0 = Bank 1
 
             if (data == 0x00) data = 0x01;
 
-            uint32_t newaddr;
+            uint16_t newaddr;
 
-            if (sys_mbc1_s == MBC1_16_8) {
-                // 16 MBit / 8 KiB  Mode
-                data &= 0x1F;
-                newaddr = data << 14;
-            }
+            sys_rombank = (sys_rombank & (~0x1F)) | (data & 0x1F);
+            newaddr = sys_rombank << 14;
 
+#ifdef SYS_VERBOSE
+            printf("BANKING: New MBC1 Address set: %04x\n", newaddr);
+#endif
             rom2 = &romfile[newaddr];   // Set new bank window
 
         }
     } else if   (addr < 0x6000) {
-        // MBC1 4_32 mode
 
-        if     ((sys_carttype == CT_MBC1)
-            |   (sys_carttype == CT_MBC1RAM)
-            |   (sys_carttype == CT_MBC1RAMBATT)) {
+        if (sys_ismbc1) {
 
-            // 0x4000 - 0x5FFF will select an appropriate ROM bank at 4000-7FFF
+            // 0x4000 - 0x5FFF RAM Bank Number *or* Upper bits of ROM bank
+            // If we have ROM Banking mode, this selects upper two bits of ROM bank.
 
-            if (data == 0x00) data = 0x01;
+            uint16_t newaddr;
 
-            uint32_t newaddr;
-
-            if (sys_mbc1_s == MBC1_4_32) {
-                // 4 MBit / 32 KiB  Mode
+            if (sys_mbc1_s == MBC1_2048_8) {
+                // 2048 KiB / 8 KiB Mode (ROM Banking), set upper bits of ROM bank
+                if (data == 0x00) data = 0x01;
                 data &= 0x03;
-                newaddr = data << 14;
-            }
+                sys_rombank = (sys_rombank & (~0x60)) | (data << 5);
+                newaddr = sys_rombank << 14;
 
-            rom2 = &romfile[newaddr];   // Set new bank window
+#ifdef SYS_VERBOSE
+                printf("BANKING: New MBC1 ROM Address set: %04x\n", newaddr);
+#endif
+
+                rom2 = &romfile[newaddr];   // Set new bank window
+
+            } else if (sys_mbc1_s == MBC1_512_32) {
+                // 512 KiB / 32 KiB Mode (RAM Banking), set RAM bank
+                sys_rambank = data & 0x03;
+
+#ifdef SYS_VERBOSE
+            printf("BANKING: New MBC1 RAM Address set: %04x\n", sys_rambank << 13);
+#endif
+
+                ram2 = &ram_ext[sys_rambank << 13];
+            }
 
         }
 
@@ -324,20 +352,22 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
         // Set MBC1 memory mode
 
-        if     ((sys_carttype == CT_MBC1)
-            |   (sys_carttype == CT_MBC1RAM)
-            |   (sys_carttype == CT_MBC1RAMBATT)) {
+        if  (sys_ismbc1) {
 
             sys_mbc1_s = data & 0x01;
 
+#ifdef SYS_VERBOSE
+            printf("BANKING: MBC1 ROM/RAM Mode Set: %02x\n", sys_mbc1_s);
+#endif
         }
 
     } else if   (addr < 0xA000) {
         // VRAM write 8000 - 9FFF
         vram[addr - 0x8000] = data;
     } else if   (addr < 0xC000) {
-        // RAM 2 handler not implemented yet
-        // addr - 0xA000
+        // RAM 2
+        if (sys_extmem_en)
+            ram2[addr-0xA000] = data;
     } else if   (addr < 0xE000) {
         ram1[addr-0xC000] = data;
     } else if   (addr < 0xFE00) {
@@ -378,12 +408,14 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             printf("TAC write: %02x\n", data);
 #endif
             // If timer config reg has been written to, set config accordingly
-            switch (data & 0x03) {
-            case TIMER_4096:    sys_timer_interval = 1024; break;
+            data &= 0x03;
+            sys_timer_interval = sys_timer_interval_list[data];
+/*            switch (data & 0x03) {
+            case TIMER_4096:    sys_timer_interval = sys_timer_interval_list[data]; break;
             case TIMER_262144:  sys_timer_interval = 16;   break;
             case TIMER_65536:   sys_timer_interval = 64;   break;
             case TIMER_16384:   sys_timer_interval = 256;  break;
-            }
+            }*/
             sys_timer_cycles = sys_timer_interval;
             data = 0xF8 | (data & 0x07);
         }
@@ -393,6 +425,10 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 #ifdef SYS_VERBOSE
             printf("TMA write: %02x\n", data);
 #endif
+        }
+
+        if (addr == MEM_LINE) {
+            return;
         }
 
         if (addr == 0xFF02 && data == 0x81) {

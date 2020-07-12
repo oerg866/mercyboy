@@ -19,6 +19,8 @@ extern uint8_t ram_io[0x4C];   // FFF0 - FF4B
 extern uint8_t ram_uio2[0x34]; // FE4C - FF7F
 extern uint8_t ram_int[0x80];  // FF80 - FFFE
 
+extern uint8_t ram_ext[0x20000]; // Up to 128K
+
 extern uint8_t ram_ie;         // FFFF
 
 #define MEM_JOYPAD  0xFF00
