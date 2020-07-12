@@ -147,16 +147,14 @@ void video_cycles(int cycles) {
 }
 
 uint8_t video_flip_tile_byte(uint8_t src) {
-    //    7 6 5 4 3 2 1 0
-    // -> 1 0 3 2 5 4 7 6
-    return ((src >> 0) & 1) << (7-1)
-        |  ((src >> 1) & 1) << (7-0)
-        |  ((src >> 2) & 1) << (7-3)
-        |  ((src >> 3) & 1) << (7-2)
-        |  ((src >> 4) & 1) << (7-5)
-        |  ((src >> 5) & 1) << (7-4)
-        |  ((src >> 6) & 1) << (7-7)
-        |  ((src >> 7) & 1) << (7-6);
+    return ((src >> 0) & 1) << (7-0)
+        |  ((src >> 1) & 1) << (7-1)
+        |  ((src >> 2) & 1) << (7-2)
+        |  ((src >> 3) & 1) << (7-3)
+        |  ((src >> 4) & 1) << (7-4)
+        |  ((src >> 5) & 1) << (7-5)
+        |  ((src >> 6) & 1) << (7-6)
+        |  ((src >> 7) & 1) << (7-7);
 }
 
 void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr) {
