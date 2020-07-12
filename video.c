@@ -404,7 +404,7 @@ void video_draw_line() {
 
 void video_update_framebuffer() {
 
-    SDL_Delay(20);
+    SDL_Delay(16);
 
 #ifdef VIDEO_VERBOSE
     printf("========== Drawing framebuffer to window ===============\n");
