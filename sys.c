@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "mem.h"
 #include "cpu.h"
 
@@ -59,7 +60,7 @@ void sys_dma_cycles(int cycles) {
     if (sys_dma_busy) {
 
 #ifdef SYS_VERBOSE
-        printf(">>>> DMA COPYING %x BYTES FROM %x\n", cycles, sys_dma_source + sys_dma_counter);
+        printf("SYS: DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
 #endif
         for (int i = 0; i < cycles; i++) {
             oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
@@ -96,7 +97,7 @@ void sys_cycles(int cycles) {
         sys_timer_cycles -= cycles;
 
 #ifdef SYS_VERBOSE
-        printf("sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
+        printf("SYS: sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
 #endif
 
         if (sys_timer_cycles <= 0) {
@@ -134,7 +135,7 @@ uint8_t sys_read_joypad() {
     }
 
 #ifdef SYS_VERBOSE
-    printf("Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, SYS_IF & INT_JOYPAD, ram_ie, sys_buttons_all);
+    printf("SYS: Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, SYS_IF & INT_JOYPAD, ram_ie, sys_buttons_all);
 #endif
 
     return result;
@@ -181,9 +182,11 @@ void sys_handle_joypads() {
 
 }
 
-
 void sys_interrupt_req(uint8_t index) {
     // Requests an interrupt
+#ifdef SYS_VERBOSE
+    printf("SYS: Requesting interrupt: %02x\n",index);
+#endif
     SYS_IF |= index;
 }
 
