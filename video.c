@@ -245,9 +245,16 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     int linexoffset = draw_x;
 
+
+    uint8_t tileidx_lower = tileidx & 0x1F;
+    uint16_t tileidx_upper = tileidx & 0xFFE0;
+
     if (xstart != 0) {
         fulltiles -=2;
-        video_draw_tile(tileidx++, yoffset, linexoffset, xstart, 8, tiles_type, 0);
+        // Wrap around after 32 tiles.
+        tileidx = tileidx_upper | tileidx_lower;
+        tileidx_lower = (tileidx_lower + 1) & 0x1F;
+        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, tiles_type, 0);
         linexoffset += 8 - xstart;
     }
 
@@ -257,7 +264,10 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
         // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
 
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, tiles_type, 0);
+        // Wrap around after 32 tiles.
+        tileidx = tileidx_upper | tileidx_lower;
+        tileidx_lower = (tileidx_lower + 1) & 0x1F;
+        video_draw_tile (tileidx, yoffset, linexoffset, 0, 8, tiles_type, 0);
         linexoffset += 8;
 
     }
@@ -265,7 +275,8 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     // draw any pixels that are left
 
     if (xstart != 0) {
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, tiles_type, 0);
+        tileidx = tileidx_upper | tileidx_lower;
+        video_draw_tile (tileidx, yoffset, linexoffset, 0, 8-xstart, tiles_type, 0);
     }
 
 }
