@@ -322,8 +322,8 @@ void video_draw_sprites() {
 
                 // right edge of the screen
                 linexoffset = cursprite->x - 8;
-                xstart = 1;
-                xcount = 160 - cursprite->x;
+                xstart = 0;
+                xcount = 168 - cursprite->x;
             } else {
                 // it's a normal, fully visible sprite
                 linexoffset = cursprite->x - 8;
