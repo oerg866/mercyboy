@@ -304,7 +304,7 @@ void video_draw_sprites() {
                 // left edge of the screen
                 linexoffset = 0;
                 xstart = 8 - cursprite->x;
-                xcount = cursprite->x;
+                xcount = 8;
 
 
             } else if (cursprite->x > (160 + 8 - 8)) {
