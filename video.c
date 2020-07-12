@@ -57,32 +57,86 @@ void video_cycles(int cycles) {
     video_line_cycles -= cycles;
     video_frame_cycles -= cycles;
 
+    // Handle STAT register updates
+    uint8_t oldstat = VID_STAT;
+
+    // Cycles 456 - 376 = MODE_SCAN_OAM
+    // Cycles 375 - 85 = MODE_RENDERING
+    // Cycles 84 - 0 = MODE_HBL
+
+    if (VID_LY >=144) {
+
+        // If we are outside of visible display, we are in VBL period
+        VID_STAT = MODE_VBL;
+
+    } else {
+
+        if          (video_line_cycles >= 376) {
+
+            VID_STAT = MODE_SCAN_OAM;
+            // Do we need to fire an OAM interrupt?
+            if ((oldstat & STAT_IE_OAM) && ((oldstat & 0x03) != MODE_SCAN_OAM))
+                sys_interrupt_req(INT_LCD);
+
+        } else if   (video_line_cycles >= 85) {
+
+            VID_STAT = MODE_RENDERING;
+
+        } else {
+
+            // Do we need to fire an OAM interrupt?
+            if ((oldstat & STAT_IE_HBL) && ((oldstat & 0x03) != MODE_HBL))
+                sys_interrupt_req(INT_LCD);
+            VID_STAT = MODE_HBL;
+
+        }
+
+    }
+
+    VID_STAT |= (oldstat & 0xFC);
+
     if (video_line_cycles <= 0) {
 
-        if (VID_LY < 144) {
+        if (VID_LY < 143) {
             // draw current line if we're in active display
             video_draw_line();
-        } else if (VID_LY == 144) {
+        } else if (VID_LY == 143) {
             // request vblank interrupt
             sys_interrupt_req(INT_VBI);
+            // for some reason STAT can also trigger a int on vblank
+            if (VID_STAT & STAT_IE_VBL)
+                sys_interrupt_req(INT_LCD);
         }
 
         VID_LY++;
+
+        // update STAT register coincidence flag
+        if (VID_LYC == VID_LY) {
+
+            VID_STAT |= STAT_COINCIDENCE;
+
+            // if LY = LYC and interrupt for that is enabled, request it
+            if (VID_STAT & STAT_IE_LY)
+                sys_interrupt_req(INT_LCD);
+
+        } else {
+
+            VID_STAT &= ~STAT_COINCIDENCE;
+
+        }
+
 
         video_line_cycles = cycles_per_line + video_line_cycles;
 
     }
 
     // if video line is higher than visible display, assert vblank
-/*
-    if (cpu_verbose) {
-        printf("line_num: %u\n", VID_LY);
-        printf("video_vbi: %u \n", video_vbi);
-    }
-*/
 
     if (video_frame_cycles <= 0) {
-        // We're done, reset & draw screen        
+#ifdef VIDEO_VERBOSE
+        printf("SCX: %02x, SCY: %02x\n", VID_SCX, VID_SCY);
+#endif
+        // We're done, reset & draw screen
         VID_LY = 0x00;
         video_update_framebuffer();
         //sys_handle_joypads();

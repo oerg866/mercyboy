@@ -21,6 +21,7 @@
 #define SPRITE_ATTR_XFLIP   (1<<5)
 
 #define VID_LCDC            ram_io[0x40]
+#define VID_STAT            ram_io[0x41]
 #define VID_SCY             ram_io[0x42]
 #define VID_SCX             ram_io[0x43]
 #define VID_LY              ram_io[0x44]
@@ -41,6 +42,17 @@
 #define LCDC_SPRITESIZE     (1<<2)
 #define LCDC_SPRITEEN       (1<<1)
 #define LCDC_BGWINEN        (1<<0)
+
+#define MODE_HBL            0x00
+#define MODE_VBL            0x01
+#define MODE_SCAN_OAM       0x02
+#define MODE_RENDERING      0x03
+
+#define STAT_IE_LY          (1<<6)
+#define STAT_IE_OAM         (1<<5)
+#define STAT_IE_VBL         (1<<4)
+#define STAT_IE_HBL         (1<<3)
+#define STAT_COINCIDENCE    (1<<2)
 
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
 void video_cycles(int cycles);
