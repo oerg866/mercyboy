@@ -14,6 +14,7 @@
 
 #define TILES_BG            0
 #define TILES_SPRITES       1
+#define TILES_WINDOW        2
 
 #define SPRITE_ATTR_PRIO    (1<<7)
 #define SPRITE_ATTR_YFLIP   (1<<6)
@@ -41,11 +42,10 @@
 #define LCDC_SPRITEEN       (1<<1)
 #define LCDC_BGWINEN        (1<<0)
 
-
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
 void video_cycles(int cycles);
 uint8_t video_flip_tile_byte(uint8_t src);
-void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t sprites, uint8_t sprite_attr);
+void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr);
 void video_draw_line();
 void video_update_framebuffer();
 

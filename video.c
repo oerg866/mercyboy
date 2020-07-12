@@ -105,15 +105,15 @@ uint8_t video_flip_tile_byte(uint8_t src) {
         |  ((src >> 7) & 1) << (7-6);
 }
 
-void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t sprites, uint8_t sprite_attr) {
+void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr) {
     // Render pixels of a tile into a line buffer
     // tileidx: index in vram of the map
     // yoffset: y offset inside the tile,
     // linexoffset: destination x position inside line buffer
     // xstart: x position inside the tile
     // count: amount of pixels to render
-    // priority: if 1, pixels will be forced, else only if previous value is 0
-    // sprites: if 1, this will be treated as sprite data, i.e. unsigned tile IDs
+    // tiles_type: defines if tiles drawn are BG, Sprite or Window tiles.
+    // sprites_attr: Sprite attributes (Xflip, yflip, prio, etc.)
 
     int16_t tile_num;
     uint8_t p1, p2; // tile bytes 1 and 2
@@ -129,7 +129,7 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
 
     // Get tile from map
-    if (sprites == TILES_SPRITES) {
+    if (tiles_type == TILES_SPRITES) {
         p1 = vram[(tileidx << 4) + yoffset];
         p2 = vram[(tileidx << 4) + yoffset + 1];
     } else if (VID_LCDC & LCDC_BGWIN_TILES) {
@@ -156,7 +156,7 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         newpixel =  ((p2 & (1 << (7-i))) >> (7 - i))
                 |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
         // respect priority parameter!
-        if (sprites == TILES_SPRITES) {
+        if (tiles_type == TILES_SPRITES) {
             if ((priority || ( (!priority) && (linebuf[linexoffset] == 0x00) ) ) && newpixel) {
                 linebuf[linexoffset] = newpixel;
             }
@@ -168,43 +168,34 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
     }
 }
 
-void video_draw_line() {
-
-#ifdef VIDEO_VERBOSE
-
-    printf("========== Drawing LINE: %d\n", VID_LY);
-#endif
-
-    // Calculate which tile SCX and SCY corresponds to
-
-    uint16_t tileidx;
-    if (VID_LCDC & LCDC_BG_TILEMAP) {
-        tileidx = 0x1c00 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
-    } else {
-
-        tileidx = 0x1800 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
-    }
-
-    // clear the linebuffer before drawing anything
-
-    memset(linebuf, 0, 160);
+void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t tiles_type) {
 
     // Get pixel in tile to start drawing from and draw first tile
 
-    int xstart = (VID_SCX & 0x07) ;
-    int yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
+    int xstart;
+    int yoffset;
+
+    if (tiles_type == TILES_BG) {
+        // Respect Scroll X and Y for BG tiles.
+        xstart = (VID_SCX & 0x07) ;
+        yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
+    } else {
+        // For Window, scroll doesn't matter.
+        xstart = 0;
+        yoffset = (VID_LY & 0x07);
+    }
 
 
-    // Amount  of full tiles to render changes depending on whether
+    // Amount of full tiles to render changes depending on whether
     // the X coordinate is evenly divisible by 8
 
-    int fulltiles = 160/8;
+    int fulltiles = draw_width/8;
 
-    int linexoffset = 0;
+    int linexoffset = draw_x;
 
     if (xstart != 0) {
         fulltiles -=2;
-        video_draw_tile(tileidx++, yoffset, linexoffset, xstart, 8, TILES_BG, 0);
+        video_draw_tile(tileidx++, yoffset, linexoffset, xstart, 8, tiles_type, 0);
         linexoffset += 8 - xstart;
     }
 
@@ -214,7 +205,7 @@ void video_draw_line() {
 
         // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
 
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, TILES_BG, 0);
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 8, tiles_type, 0);
         linexoffset += 8;
 
     }
@@ -222,12 +213,12 @@ void video_draw_line() {
     // draw any pixels that are left
 
     if (xstart != 0) {
-        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, TILES_BG, 0);
+        video_draw_tile (tileidx++, yoffset, linexoffset, 0, 7-xstart+1, tiles_type, 0);
     }
 
+}
 
-    // draw sprites
-
+void video_draw_sprites() {
     // check OAM if there are sprites that are visible, maximum of 10
 
     int drawn_sprites = 0;
@@ -237,6 +228,9 @@ void video_draw_line() {
     struct spritedata *cursprite = (struct spritedata*) oam;
 
     int xcount;
+    int xstart;
+    int yoffset;
+    int linexoffset;
 
     while ((drawn_sprites < 10) && (sprite_idx < (160/4))) {
 
@@ -282,7 +276,54 @@ void video_draw_line() {
         cursprite++;
         sprite_idx++;
     }
+}
+void video_draw_line() {
 
+#ifdef VIDEO_VERBOSE
+
+    printf("========== Drawing LINE: %d\n", VID_LY);
+#endif
+
+    // clear the linebuffer before drawing anything
+
+    memset(linebuf, 0, 160);
+
+    // Calculate which tile SCX and SCY corresponds to
+
+    uint16_t tileidx;
+
+    if (VID_LCDC & LCDC_BG_TILEMAP) {
+        tileidx = 0x1c00 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
+    } else {
+
+        tileidx = 0x1800 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
+    }
+
+    video_draw_tilemap(tileidx, 0, 160, TILES_BG);
+
+    video_draw_sprites();
+
+    // Draw window ONLY if it is enabled AND in visible range
+
+    if ((VID_LCDC & LCDC_WINEN) && (VID_LY >= VID_WY)) {
+
+        // Draw window
+
+        if (VID_LCDC & LCDC_WIN_TILEMAP) {
+            tileidx = 0x1c00 + (((VID_WY + VID_LY) >> 3) << 5);
+        } else {
+
+            tileidx = 0x1800 + (((VID_WY + VID_LY) >> 3) << 5);
+        }
+
+        uint16_t window_start = VID_WX - 7;
+
+#ifdef VIDEO_VERBOSE
+        printf("VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, VID_WY);
+#endif
+        video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
+
+    }
 
     // convert line buffer to actual line
 
