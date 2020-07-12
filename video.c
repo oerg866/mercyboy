@@ -98,10 +98,16 @@ void video_cycles(int cycles) {
     if (video_line_cycles <= 0) {
 
         if (VID_LY < 143) {
+
             // draw current line if we're in active display
             video_draw_line();
+
         } else if (VID_LY == 143) {
 
+            // draw last line of active display
+            video_draw_line();
+
+            // last line was drawn, time to update the framebuffer and req interrupts
             video_update_framebuffer();
 
             // request vblank interrupt
