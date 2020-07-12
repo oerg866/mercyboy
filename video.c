@@ -1,18 +1,8 @@
 #include "video.h"
 
-
-int lines_per_frame = 154;
-int cycles_per_line = 456;
-int cycles_per_frame = 456 * 154;
-
-int video_line_cycles = 0;
-int video_frame_cycles = 0;
-int video_line_num = 0;
-
-SDL_Surface * video_surface;
-SDL_Window * video_window;
-
-uint8_t video_vbi = 0;
+#include "cpu.h"
+#include "mem.h"
+#include "sys.h"
 
 /*
  * Mode 0:
@@ -36,20 +26,26 @@ ____33____33____33____33____33____33__________________3
 
  */
 
+int lines_per_frame = LINES_PER_FRAME; //154;
+int cycles_per_line = CYCLES_PER_LINE; //456;
+int cycles_per_frame = CYCLES_PER_FRAME; //456 * 154;
 
-//uint8_t     framebuffer [160*144*4];
-uint32_t    framebuffer32 [160*144];
+int video_line_cycles;
+int video_frame_cycles;
 
+uint32_t framebuffer32 [160*144];
 
 uint32_t linebuf_final[160];
 uint8_t linebuf[160];
 
-uint32_t     palette[4] = {0x00ffffff,0x00aaaaaa,0x00555555,0x00000000};
+uint32_t palette[4] = {0x00ffffff,0x00aaaaaa,0x00555555,0x00000000};
+
+SDL_Surface * video_surface;
+SDL_Window * video_window;
 
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window) {
     video_line_cycles = cycles_per_line;
     video_frame_cycles = cycles_per_frame;
-//    framebuffer32 = (uint32_t*) framebuffer;
     video_surface = init_surface;
     video_window = init_window;
     VID_LY = 0x00;
@@ -62,17 +58,15 @@ void video_cycles(int cycles) {
 
     if (video_line_cycles <= 0) {
 
-
-        if (video_line_num < 144) {
+        if (VID_LY < 144) {
             // draw current line if we're in active display
             video_draw_line();
-        } else {
+        } else if (VID_LY == 144) {
             // request vblank interrupt
             sys_interrupt_req(INT_VBI);
         }
 
-        video_line_num++;
-        VID_LY = video_line_num;
+        VID_LY++;
 
         video_line_cycles = cycles_per_line + video_line_cycles;
 
@@ -87,8 +81,7 @@ void video_cycles(int cycles) {
 */
 
     if (video_frame_cycles <= 0) {
-        // We're done, reset & draw screen
-        video_line_num = 0;
+        // We're done, reset & draw screen        
         VID_LY = 0x00;
         video_update_framebuffer();
         //sys_handle_joypads();
@@ -178,16 +171,16 @@ void video_draw_line() {
 
 #ifdef VIDEO_VERBOSE
 
-    printf("========== Drawing LINE: %d\n", video_line_num);
+    printf("========== Drawing LINE: %d\n", VID_LY);
 #endif
 
     // Calculate which tile SCX and SCY corresponds to
     uint16_t tileidx;
     if (VID_LCDC & LCDC_BG_TILEMAP) {
-        tileidx = 0x1c00 + (((VID_SCY + video_line_num) >> 3) << 5) + (VID_SCX >> 3);
+        tileidx = 0x1c00 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
     } else {
 
-        tileidx = 0x1800 + (((VID_SCY + video_line_num) >> 3) << 5) + (VID_SCX >> 3);
+        tileidx = 0x1800 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
     }
 
     // clear the linebuffer before drawing anything
@@ -197,7 +190,7 @@ void video_draw_line() {
     // Get pixel in tile to start drawing from and draw first tile
 
     int xstart = (VID_SCX & 0x07) ;
-    int yoffset = ((VID_SCY + video_line_num) & 0x07); // Get y position in tile to start from
+    int yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
 
 
     // Amount  of full tiles to render changes depending on whether
@@ -249,13 +242,13 @@ void video_draw_line() {
 
         // in 8x8 mode, a tile is visible if current line - Y position - 16 is less than 8 (or 16 in 16 mode)
         // and it is also visible if X position != 0 and X position < 168
-        if (((unsigned) (video_line_num - (cursprite->y - 16)) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
+        if (((unsigned) (VID_LY - (cursprite->y - 16)) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
 
 
             // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
 
             // Figure out Y position
-            yoffset = video_line_num - (cursprite->y - 16);
+            yoffset = VID_LY - (cursprite->y - 16);
 
             // Figure out X position and count
             if (cursprite->x < 8) {
@@ -295,7 +288,7 @@ void video_draw_line() {
         linebuf_final[i] = palette[linebuf[i]];
     }
 
-    memcpy(&framebuffer32[160*video_line_num], linebuf_final , 160*sizeof(uint32_t));
+    memcpy(&framebuffer32[160*VID_LY], linebuf_final , 160*sizeof(uint32_t));
 
 }
 

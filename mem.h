@@ -3,12 +3,7 @@
 #ifndef MEM_H
 #define MEM_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint-gcc.h>
-#include <string.h>
-#include "cpu.h"
-#include "sys.h"
+#include <stdint.h>
 
 extern uint8_t *romfile;
 extern uint8_t *addonram;

@@ -1,20 +1,11 @@
 #include "mem.h"
 
-/*
-uint8_t rom1[0x4000];
-uint8_t *rom2;
-uint8_t vram[0x2000];
-uint8_t *ram2;
-uint8_t ram1[0x2000];
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cpu.h"
+#include "sys.h"
 
-uint8_t ram_uio1[0x60]; // FEA0 - FEFF
-uint8_t ram_io[0x4C];   // FF00 - FF4B
-uint8_t ram_uio2[0x34]; // FE4C - FF7F
-uint8_t ram_int[0x80];  // FF80 - FFFE
-
-uint8_t ram_ie // FFFF
-
-*/
 uint8_t *romfile;
 uint8_t *addonram;
 

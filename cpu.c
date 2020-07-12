@@ -1,30 +1,29 @@
-
 #include "cpu.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include "mem.h"
+#include "video.h"
+#include "sys.h"
 
 uint8_t     regs8  [0x0C];
 uint16_t   *regs16 = (uint16_t*) regs8;
 
-uint16_t   *pc;
-uint16_t   *hl;
-uint16_t   *bc;
-uint16_t   *de;
-uint16_t   *sp;
+uint16_t   *pc = (uint16_t*) (regs8) + REG_PC;
+uint16_t   *hl = (uint16_t*) (regs8) + REG_HL;
+uint16_t   *bc = (uint16_t*) (regs8) + REG_BC;
+uint16_t   *de = (uint16_t*) (regs8) + REG_DE;
+uint16_t   *sp = (uint16_t*) (regs8) + REG_SP;
 
 uint8_t    *flags;
 
 uint8_t     op;
 
-uint8_t     cpu_interrupt = 0;
-uint8_t     cpu_ie = 0;
-uint8_t     cpu_ei_pending = 0;
-uint8_t     cpu_di_pending = 0;
+uint8_t     cpu_ie;
+uint8_t     cpu_ei_pending;
+uint8_t     cpu_di_pending;
 
-uint8_t     cpu_ints[5] = {0,0,0,0,0};
-
-uint8_t     cpu_verbose = 0;
-
-uint8_t     cpu_halted = 0;
+uint8_t     cpu_halted;
 
 inline void sr8(uint16_t reg, uint8_t n) {
     // set reg 8 bit
@@ -48,14 +47,14 @@ inline void ipc(uint16_t n) {
 
 void cpu_init() {
 
-    pc = &regs16[REG_PC];
-    hl = &regs16[REG_HL];
-    bc = &regs16[REG_BC];
-    de = &regs16[REG_DE];
-    sp = &regs16[REG_SP];
     flags = &regs8[REG_F];
     spc(0x0100); // set pc to 100
     sr16(REG_SP, bs(0xFFFE)); // Set stack to fffe
+
+    cpu_ie = 0;
+    cpu_ei_pending = 0;
+    cpu_di_pending = 0;
+    cpu_halted = 0;
 
 }
 

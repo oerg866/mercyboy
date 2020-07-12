@@ -3,12 +3,7 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint-gcc.h>
-
-#include "mem.h"
-#include "video.h"
+#include <stdint.h>
 
 #define REG_AF  0x00
 #define REG_BC  0x01
@@ -42,6 +37,7 @@
 
 #if defined(__WIN32__)
 
+#include <stdlib.h>
 #define bs _byteswap_ushort
 
 #elif defined(__LINUX__)
@@ -51,32 +47,23 @@
 
 #endif
 
-// #define hl byteswap(regs16[REG_HL])
+extern uint8_t      regs8[];
+extern uint16_t    *regs16;
+extern uint8_t     *flags;
 
-extern uint8_t     regs8  [0x0C];
-extern uint16_t   *regs16;
+extern uint16_t    *pc;
+extern uint16_t    *hl;
+extern uint16_t    *bc;
+extern uint16_t    *de;
+extern uint16_t    *sp;
 
-extern uint16_t   *pc;
-extern uint16_t   *hl;
-extern uint16_t   *bc;
-extern uint16_t   *de;
-extern uint16_t   *sp;
+extern uint8_t      op;
 
-extern uint8_t    *flags;
+extern uint8_t      cpu_ie;
+extern uint8_t      cpu_ei_pending;
+extern uint8_t      cpu_di_pending;
 
-extern uint8_t     op;
-
-extern uint8_t     cpu_interrupt;
-extern uint8_t     cpu_ie;
-extern uint8_t     cpu_ei_pending;
-extern uint8_t     cpu_di_pending;
-
-
-extern uint8_t     cpu_ints[5];
-
-extern uint8_t     cpu_verbose;
-
-extern uint8_t     cpu_halted;
+extern uint8_t      cpu_halted;
 
 // CPU.C
 

@@ -1,5 +1,8 @@
 #include "cpu.h"
 
+#include "mem.h"
+#include "sys.h"
+
 inline int op_get_operand8_a(uint8_t byte, int bitshift) {
     // gets an operand, a is possible
     int dst = ((byte >> bitshift) & 0x07) + 2;

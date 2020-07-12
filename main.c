@@ -37,6 +37,7 @@ int main(int argc, char* argv[])
 
     printf ("File size: %u bytes.\n", fsize);
     cpu_init();
+    sys_init();
     int result = mem_init(romfile, fsize);
 
 

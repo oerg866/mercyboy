@@ -3,24 +3,11 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include "cpu.h"
-#include "mem.h"
 #include <SDL2/SDL.h>
 
-/*
-extern uint8_t video_vbi;
-extern uint8_t video_hbi;
-*/
-
-extern int lines_per_frame;
-extern int cycles_per_line;
-extern int cycles_per_frame;
-
-extern int video_line_cycles;
-extern int video_line_num;
-
-extern SDL_Surface *video_surface;
-extern SDL_Window *video_window;
+#define LINES_PER_FRAME     154
+#define CYCLES_PER_LINE     456
+#define CYCLES_PER_FRAME    LINES_PER_FRAME*CYCLES_PER_LINE
 
 #define PRIORITY_FALSE      0
 #define PRIORITY_TRUE       1
@@ -32,18 +19,18 @@ extern SDL_Window *video_window;
 #define SPRITE_ATTR_YFLIP   (1<<6)
 #define SPRITE_ATTR_XFLIP   (1<<5)
 
-#define VID_LCDC    ram_io[0x40]
-#define VID_SCY     ram_io[0x42]
-#define VID_SCX     ram_io[0x43]
-#define VID_LY      ram_io[0x44]
-#define VID_LYC     ram_io[0x45]
-#define VID_DMA     ram_io[0x46]
-#define VID_BGP     ram_io[0x47]
-#define VID_OBP0    ram_io[0x48]
-#define VID_OBP1    ram_io[0x49]
-#define VID_WY      ram_io[0x4a]
-#define VID_WX      ram_io[0x4b]
-#define VID_IE      ram_ie
+#define VID_LCDC            ram_io[0x40]
+#define VID_SCY             ram_io[0x42]
+#define VID_SCX             ram_io[0x43]
+#define VID_LY              ram_io[0x44]
+#define VID_LYC             ram_io[0x45]
+#define VID_DMA             ram_io[0x46]
+#define VID_BGP             ram_io[0x47]
+#define VID_OBP0            ram_io[0x48]
+#define VID_OBP1            ram_io[0x49]
+#define VID_WY              ram_io[0x4a]
+#define VID_WX              ram_io[0x4b]
+#define VID_IE              ram_ie
 
 #define LCDC_LCDEN          (1<<7)
 #define LCDC_WIN_TILEMAP    (1<<6)

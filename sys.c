@@ -1,26 +1,57 @@
 #include "sys.h"
 
-uint8_t sys_carttype = CT_ROMONLY;
-uint8_t sys_mbc1_s = MBC1_16_8;
-uint8_t sys_romsize = 0;
+#include <SDL2/SDL.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include "mem.h"
+#include "cpu.h"
 
+uint8_t sys_carttype;
+uint8_t sys_mbc1_s;
+uint8_t sys_romsize;
+uint8_t sys_extmem_en;
+uint8_t sys_rombank;
+uint8_t sys_rambank;
 
-int16_t sys_div_cycles = SYS_DIV_INTERVAL;
+int16_t sys_div_cycles;
 
-int16_t sys_timer_cycles = 1024;
-int16_t sys_timer_interval = 1024;
+int16_t sys_timer_cycles;
+int16_t sys_timer_interval;
 
-uint8_t sys_buttons_all = 0;
+uint8_t sys_buttons_all;
 
-uint16_t sys_dma_source = 0;
-uint8_t sys_dma_counter = 0;
-uint8_t sys_dma_busy = 0;
+uint16_t sys_dma_source;
+uint8_t sys_dma_counter;
+uint8_t sys_dma_busy;
 
-#define sys_timer_int cpu_ints[2]
-#define sys_joypad_int cpu_ints[4]
+int16_t sys_timer_interval_list[4] = {
+    SYS_TIMER_CYCLES_4096HZ,
+    SYS_TIMER_CYCLES_262144HZ,
+    SYS_TIMER_CYCLES_65536HZ,
+    SYS_TIMER_CYCLES_16384HZ,
+};
 
-#define TIMER_ENABLE (1<<2)
+void sys_init() {
 
+    sys_carttype = CT_ROMONLY;
+    sys_mbc1_s = MBC1_2048_8;
+    sys_romsize = 0;
+    sys_extmem_en = 0;
+    sys_rombank = 0;
+    sys_rambank = 0;
+
+    sys_div_cycles = SYS_DIV_INTERVAL;
+    sys_timer_cycles = SYS_TIMER_CYCLES_4096HZ;
+
+    sys_timer_interval = SYS_TIMER_CYCLES_4096HZ;
+
+    sys_buttons_all = 0;
+
+    sys_dma_source = 0;
+    sys_dma_counter = 0;
+    sys_dma_busy = 0;
+
+}
 
 void sys_dma_cycles(int cycles) {
 
@@ -32,11 +63,11 @@ void sys_dma_cycles(int cycles) {
 #endif
         for (int i = 0; i < cycles; i++) {
             oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
-            if (++sys_dma_counter == 160)
+            if (++sys_dma_counter == SYS_DMA_LENGTH)
                 break;
         }
 
-        if (sys_dma_counter == 160) {
+        if (sys_dma_counter == SYS_DMA_LENGTH) {
             // DMA has ended
             sys_dma_source = 0;
             sys_dma_counter = 0;
@@ -58,7 +89,7 @@ void sys_cycles(int cycles) {
         sys_div_cycles = SYS_DIV_INTERVAL + sys_div_cycles;
     }
 
-    if (SYS_TIMER_CFG & TIMER_ENABLE)  {
+    if (SYS_TIMER_CFG & SYS_TIMER_ENABLED)  {
 
         // Do timer shenanigans
 
@@ -91,8 +122,6 @@ void sys_cycles(int cycles) {
 uint8_t sys_read_joypad() {
 
     uint8_t result = 0x0F;
-
-
 
     // Handle DPAD if enabled
     if (SYS_JOYPAD & JOY_DPAD) {
