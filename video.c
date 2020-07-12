@@ -101,6 +101,9 @@ void video_cycles(int cycles) {
             // draw current line if we're in active display
             video_draw_line();
         } else if (VID_LY == 143) {
+
+            video_update_framebuffer();
+
             // request vblank interrupt
             sys_interrupt_req(INT_VBI);
             // for some reason STAT can also trigger a int on vblank
@@ -138,7 +141,6 @@ void video_cycles(int cycles) {
 #endif
         // We're done, reset & draw screen
         VID_LY = 0x00;
-        video_update_framebuffer();
         //sys_handle_joypads();
         video_frame_cycles = cycles_per_frame + video_frame_cycles;
     }
@@ -225,16 +227,18 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     // Get pixel in tile to start drawing from and draw first tile
 
     int xstart;
+    int xrest;
     int yoffset;
 
     if (tiles_type == TILES_BG) {
         // Respect Scroll X and Y for BG tiles.
         xstart = (VID_SCX & 0x07) ;
+        xrest = xstart;
         yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
     } else {
         // For Window, scroll doesn't matter.
-        xstart = 0;
-        yoffset = (VID_LY & 0x07);
+        xrest = draw_width & 0x07;
+        yoffset = ((VID_LY - VID_WY) & 0x07);
     }
 
 
@@ -274,9 +278,9 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     // draw any pixels that are left
 
-    if (xstart != 0) {
+    if (xrest != 0) {
         tileidx = tileidx_upper | tileidx_lower;
-        video_draw_tile (tileidx, yoffset, linexoffset, 0, xstart, tiles_type, 0);
+        video_draw_tile (tileidx, yoffset, linexoffset, 0, xrest, tiles_type, 0);
     }
 
 }
@@ -373,10 +377,10 @@ void video_draw_line() {
         // Draw window
 
         if (VID_LCDC & LCDC_WIN_TILEMAP) {
-            tileidx = 0x1c00 + (((VID_WY + VID_LY) >> 3) << 5);
+            tileidx = 0x1c00 + (((VID_LY - VID_WY) >> 3) << 5);
         } else {
 
-            tileidx = 0x1800 + (((VID_WY + VID_LY) >> 3) << 5);
+            tileidx = 0x1800 + (((VID_LY - VID_WY) >> 3) << 5);
         }
 
         uint16_t window_start = VID_WX - 7;
