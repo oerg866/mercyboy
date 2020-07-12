@@ -28,6 +28,8 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_TMA     0xFF06
 #define MEM_TAC     0xFF07
 #define MEM_IF      0xFF0F
+#define MEM_SCY     0xFF42
+#define MEM_SCX     0xFF43
 #define MEM_LINE    0xFF44
 #define MEM_DMA     0xFF46
 

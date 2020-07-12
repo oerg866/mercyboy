@@ -308,7 +308,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             newaddr = sys_rombank << 14;
 
 #ifdef SYS_VERBOSE
-            printf("BANKING: New MBC1 Address set: %04x\n", newaddr);
+            printf("BANKING: New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
 #endif
             rom2 = &romfile[newaddr];   // Set new bank window
 
@@ -330,7 +330,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
                 newaddr = sys_rombank << 14;
 
 #ifdef SYS_VERBOSE
-                printf("BANKING: New MBC1 ROM Address set: %04x\n", newaddr);
+                printf("BANKING: New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
 #endif
 
                 rom2 = &romfile[newaddr];   // Set new bank window
@@ -434,6 +434,16 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         if (addr == 0xFF02 && data == 0x81) {
             printf("%c", cpu_read8_force(0xFF01));
         }
+
+#ifdef VIDEO_VERBOSE
+        if (addr == MEM_SCY) {
+            printf("SCY Write: %02x\n", data);
+        }
+
+        if (addr == MEM_SCX) {
+            printf("SCX Write: %02x\n", data);
+        }
+#endif
 
         ram_io[addr - 0xFF00] = data;
 
