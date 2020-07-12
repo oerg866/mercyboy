@@ -259,7 +259,7 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     uint8_t tileidx_lower = tileidx & 0x1F;
     uint16_t tileidx_upper = tileidx & 0xFFE0;
 
-    if (xstart != 0) {
+    if (xrest != 0) {
         fulltiles -= 1;
         // Wrap around after 32 tiles.
         tileidx = tileidx_upper | tileidx_lower;
