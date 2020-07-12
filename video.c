@@ -1,5 +1,6 @@
 #include "video.h"
 
+#include <stdio.h>
 #include "cpu.h"
 #include "mem.h"
 #include "sys.h"
@@ -175,6 +176,7 @@ void video_draw_line() {
 #endif
 
     // Calculate which tile SCX and SCY corresponds to
+
     uint16_t tileidx;
     if (VID_LCDC & LCDC_BG_TILEMAP) {
         tileidx = 0x1c00 + (((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3);
@@ -202,8 +204,8 @@ void video_draw_line() {
 
     if (xstart != 0) {
         fulltiles -=2;
-        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, TILES_BG, 0);
-        linexoffset += 8;
+        video_draw_tile(tileidx++, yoffset, linexoffset, xstart, 8, TILES_BG, 0);
+        linexoffset += 8 - xstart;
     }
 
     // draw all the full tiles
