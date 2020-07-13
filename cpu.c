@@ -511,12 +511,8 @@ void cycles(uint16_t n) {
 
 uint16_t process_interrupts() {
 
-
     if (cpu_ie || cpu_halted) {
-
-
         for (uint16_t i = 0; i < 5; i++) {
-
             if ((ram_ie & SYS_IF) & (1 << i)) {
                 // if an int is enabled and pending, service it
 
@@ -544,10 +540,16 @@ uint16_t process_interrupts() {
                 // 12 cycles i think??
                 cycles(12);
                 return 1;
+            } else if (cpu_halted && (SYS_IF & (1 << i))) {
+                // if we're in a HALT, IME is 0 and an interrupt flag gets set
+                // just resume execution
+                return 1;
             }
+
 
         }
 
     }
     return 0;
+
 }
