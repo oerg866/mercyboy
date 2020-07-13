@@ -376,7 +376,7 @@ void video_draw_line() {
 
     // Draw window ONLY if it is enabled AND in visible range
 
-    if ((VID_LCDC & LCDC_WINEN) && (VID_LY >= VID_WY)) {
+    if ((VID_LCDC & LCDC_WINEN) && (VID_LY >= VID_WY) && (VID_WX < (160+7-1))) {
 
         // Draw window
 
@@ -408,7 +408,7 @@ void video_draw_line() {
 
 void video_update_framebuffer() {
 
-    SDL_Delay(16);
+    SDL_Delay(5);
 
 #ifdef VIDEO_VERBOSE
     printf("========== Drawing framebuffer to window ===============\n");
