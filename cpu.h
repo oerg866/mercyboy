@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #define bs _byteswap_ushort
 
-#elif defined(__LINUX__)
+#elif defined(__linux__)
 
 #define bs bswap_16
 #include <byteswap.h>
