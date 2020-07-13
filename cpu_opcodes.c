@@ -1,5 +1,6 @@
 #include "cpu.h"
 
+#include <stdio.h>
 #include "mem.h"
 #include "sys.h"
 
