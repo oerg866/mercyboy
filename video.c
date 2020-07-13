@@ -232,14 +232,12 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     // Get pixel in tile to start drawing from and draw first tile
 
-    int xstart;
     int xrest;
     int yoffset;
 
     if (tiles_type == TILES_BG) {
         // Respect Scroll X and Y for BG tiles.
-        xstart = (VID_SCX & 0x07) ;
-        xrest = xstart;
+        xrest = (VID_SCX & 0x07) ;
         yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
     } else {
         // For Window, scroll doesn't matter.
@@ -264,8 +262,8 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
         // Wrap around after 32 tiles.
         tileidx = tileidx_upper | tileidx_lower;
         tileidx_lower = (tileidx_lower + 1) & 0x1F;
-        video_draw_tile(tileidx, yoffset, linexoffset, xstart, 8, tiles_type, 0);
-        linexoffset += 8 - xstart;
+        video_draw_tile(tileidx, yoffset, linexoffset, xrest, 8, tiles_type, 0);
+        linexoffset += 8 - xrest;
     }
 
     // draw all the full tiles
