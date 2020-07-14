@@ -441,7 +441,13 @@ void video_draw_line() {
 
 void video_update_framebuffer() {
 
-    SDL_Delay(5);
+#ifdef USE_AUDIO_TIMING
+#include "audio.h"
+    while (audio_timer < 0.016);
+    audio_timer = audio_timer - 0.016;
+#else
+    SDL_Delay(16);
+#endif
 
 #ifdef VIDEO_VERBOSE
     printf("========== Drawing framebuffer to window ===============\n");

@@ -18,13 +18,15 @@ SOURCES += \
     cpu_mem.c \
     mem.c \
     sys.c \
-    video.c
+    video.c \
+    audio.c
 
 HEADERS += \
     cpu.h \
     mem.h \
     sys.h \
-    video.h
+    video.h \
+    audio.h
 
 DISTFILES += \
     LICENSE \

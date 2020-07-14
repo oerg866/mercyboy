@@ -61,6 +61,8 @@
 #define PAL_OFFSET_OBP0     4
 #define PAL_OFFSET_OBP1     8
 
+#define USE_AUDIO_TIMING
+
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
 void video_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_cycles(int cycles);

@@ -4,6 +4,8 @@
 #include "cpu.h"
 #include "mem.h"
 #include "video.h"
+#include "audio.h"
+
 #include "string.h"
 
 #ifdef __WIN32__
@@ -71,6 +73,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    audio_sdl_init();
     video_init(window_surface, window);
 
 
