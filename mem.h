@@ -28,6 +28,33 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_TMA     0xFF06
 #define MEM_TAC     0xFF07
 #define MEM_IF      0xFF0F
+
+#define MEM_NR10    0xFF10
+#define MEM_NR11    0xFF11
+#define MEM_NR12    0xFF12
+#define MEM_NR13    0xFF13
+#define MEM_NR14    0xFF14
+
+#define MEM_NR21    0xFF16
+#define MEM_NR22    0xFF17
+#define MEM_NR23    0xFF18
+#define MEM_NR24    0xFF19
+
+#define MEM_NR30    0xFF1a
+#define MEM_NR31    0xFF1b
+#define MEM_NR32    0xFF1c
+#define MEM_NR33    0xFF1d
+#define MEM_NR34    0xFF1e
+
+#define MEM_NR41    0xFF20
+#define MEM_NR42    0xFF21
+#define MEM_NR43    0xFF22
+#define MEM_NR44    0xFF23
+
+#define MEM_NR50    0xFF24
+#define MEM_NR51    0xFF25
+#define MEM_NR52    0xFF26
+
 #define MEM_SCY     0xFF42
 #define MEM_SCX     0xFF43
 #define MEM_LINE    0xFF44
@@ -35,6 +62,11 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_BGP     0xFF47
 #define MEM_OBP0    0xFF48
 #define MEM_OBP1    0xFF49
+
+
+#define AUDIO_NR50 ram_io[0x24]
+#define AUDIO_NR51 ram_io[0x25]
+#define AUDIO_NR52 ram_io[0x26]
 
 int mem_init(uint8_t *romfile, int fsize);
 uint8_t* mem_addr(uint16_t addr);

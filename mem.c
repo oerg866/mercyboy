@@ -5,6 +5,7 @@
 #include <string.h>
 #include "cpu.h"
 #include "sys.h"
+#include "audio.h"
 #include "video.h"
 
 uint8_t *romfile;
@@ -228,7 +229,7 @@ uint16_t cpu_read16_force(uint16_t addr) {
 
     if          (addr < 0x4000) {
         return *(uint16_t*) &rom1[addr];
-    } else if   (addr < 0x8000) {        
+    } else if   (addr < 0x8000) {
         return *(uint16_t*) &rom2[addr-0x4000];
     } else if   (addr < 0xA000) {
         // VRAM write 8000 - 9FFF
@@ -385,6 +386,15 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
 
         /*
+         *      SOUND
+         */
+
+        if ((addr >= 0xFF10) && (addr <= 0xFF26)) {
+            ram_io[addr-0xFF00] = data;
+            audio_handle_write(addr, data);
+        }
+
+        /*
          *      JOYPAD
          */
 
@@ -422,7 +432,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         }
 
 
-#ifdef SYS_VERBOSE        
+#ifdef SYS_VERBOSE
         if (addr == MEM_TMA)
             printf("TMA write: %02x\n", data);
 #endif
