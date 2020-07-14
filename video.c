@@ -324,7 +324,7 @@ void video_draw_sprites() {
 
     int drawn_sprites = 0;
     int sprite_idx = 0;
-    int video_tile_height = 8;      // no idea how to figure out yet whether sprites are 8 or 16 pixels high??
+    int video_tile_height = 8 + ((VID_LCDC & LCDC_SPRITESIZE) << 1);
 
     struct spritedata *cursprite = (struct spritedata*) oam;
 
@@ -402,7 +402,10 @@ void video_draw_line() {
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
 
-    video_draw_sprites();
+    // Draw sprites if they are enabled
+
+    if (VID_LCDC & LCDC_SPRITEEN)
+        video_draw_sprites();
 
     // Draw window ONLY if it is enabled AND in visible range
 
