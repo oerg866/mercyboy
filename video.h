@@ -19,6 +19,7 @@
 #define SPRITE_ATTR_PRIO    (1<<7)
 #define SPRITE_ATTR_YFLIP   (1<<6)
 #define SPRITE_ATTR_XFLIP   (1<<5)
+#define SPRITE_ATTR_PALETTE (1<<4)
 
 #define VID_LCDC            ram_io[0x40]
 #define VID_STAT            ram_io[0x41]
@@ -54,7 +55,14 @@
 #define STAT_IE_HBL         (1<<3)
 #define STAT_COINCIDENCE    (1<<2)
 
+// Array offsets for video_palette
+
+#define PAL_OFFSET_BGP      0
+#define PAL_OFFSET_OBP0     4
+#define PAL_OFFSET_OBP1     8
+
 void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
+void video_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_cycles(int cycles);
 uint8_t video_flip_tile_byte(uint8_t src);
 void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr);

@@ -5,6 +5,7 @@
 #include <string.h>
 #include "cpu.h"
 #include "sys.h"
+#include "video.h"
 
 uint8_t *romfile;
 uint8_t *addonram;
@@ -420,20 +421,32 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             data = 0xF8 | (data & 0x07);
         }
 
-        if (addr == MEM_TMA) {
 
-#ifdef SYS_VERBOSE
+#ifdef SYS_VERBOSE        
+        if (addr == MEM_TMA)
             printf("TMA write: %02x\n", data);
 #endif
-        }
 
         if (addr == MEM_LINE) {
             return;
         }
 
-        if (addr == 0xFF02 && data == 0x81) {
+#ifdef DEBUG
+        if (addr == 0xFF02 && data == 0x81)
             printf("%c", cpu_read8_force(0xFF01));
-        }
+#endif
+
+        // Palette registers require palettes to be updated
+
+        if (addr == MEM_BGP)
+            video_update_palette(PAL_OFFSET_BGP, data);
+
+        if (addr == MEM_OBP0)
+            video_update_palette(PAL_OFFSET_OBP0, data);
+
+        if (addr == MEM_OBP1)
+            video_update_palette(PAL_OFFSET_OBP1, data);
+
 
 #ifdef VIDEO_VERBOSE
         if (addr == MEM_SCY) {

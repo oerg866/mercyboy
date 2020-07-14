@@ -39,7 +39,9 @@ uint32_t framebuffer32 [160*144];
 uint32_t linebuf_final[160];
 uint8_t linebuf[160];
 
-uint32_t palette[4] = {0x00ffffff,0x00aaaaaa,0x00555555,0x00000000};
+const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
+uint32_t pal_rgb[4*3];
+uint8_t pal_int[4*3] = {0,1,2,3, 0,1,2,3, 0,1,2,3};
 
 SDL_Surface * video_surface;
 SDL_Window * video_window;
@@ -50,6 +52,20 @@ void video_init(SDL_Surface *init_surface, SDL_Window *init_window) {
     video_surface = init_surface;
     video_window = init_window;
     VID_LY = 0x00;
+}
+
+void video_update_palette(uint8_t pal_offset, uint8_t reg) {
+    // Update a palette. pal_offset is offset in palette arrays to take. 0 for bgp, 1*4 for obp0, 2*4 for obp1
+    *(uint32_t*) &pal_int[pal_offset] =
+          (reg & 0x03) << 0
+        | (reg & 0x0C) << (8 - 2)
+        | (reg & 0x30) << (16 - 4)
+        | (reg & 0xC0) << (24 - 6);
+
+    pal_rgb[0+pal_offset] = bw_palette[pal_int[0+pal_offset]];
+    pal_rgb[1+pal_offset] = bw_palette[pal_int[1+pal_offset]];
+    pal_rgb[2+pal_offset] = bw_palette[pal_int[2+pal_offset]];
+    pal_rgb[3+pal_offset] = bw_palette[pal_int[3+pal_offset]];
 }
 
 void video_cycles(int cycles) {
@@ -187,9 +203,21 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
     yoffset = yoffset << 1;
 
+    // Palette offset, BGP by default. Will be set for sprites further down.
+
+    uint8_t pal_offset;
 
     // Get tile from map
+
     if (tiles_type == TILES_SPRITES) {
+
+        // For sprites set the palette offset.
+        if (sprite_attr & SPRITE_ATTR_PALETTE) {
+            pal_offset = PAL_OFFSET_OBP1;
+        } else {
+            pal_offset = PAL_OFFSET_OBP0;
+        }
+
         p1 = vram[(tileidx << 4) + yoffset];
         p2 = vram[(tileidx << 4) + yoffset + 1];
     } else if (VID_LCDC & LCDC_BGWIN_TILES) {
@@ -210,15 +238,17 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         p1 = video_flip_tile_byte(p1);
         p2 = video_flip_tile_byte(p2);
     }
+
     uint8_t newpixel;
+
     for (int i = xstart; i < count; i++) {
 
-        newpixel =  ((p2 & (1 << (7-i))) >> (7 - i))
-                |   (((p1 & (1 << (7-i))) >> (7 - i)) << 1);
+        newpixel =  (((p2 & (1 << (7 - i))) >> (7 - i))
+                |   (((p1 & (1 << (7 - i))) >> (7 - i)) << 1));
         // respect priority parameter!
         if (tiles_type == TILES_SPRITES) {
             if ((priority || ( (!priority) && (linebuf[linexoffset] == 0x00) ) ) && newpixel) {
-                linebuf[linexoffset] = newpixel;
+                linebuf[linexoffset] = newpixel + pal_offset;
             }
         } else {
             linebuf[linexoffset] = newpixel;
@@ -399,7 +429,7 @@ void video_draw_line() {
     // convert line buffer to actual line
 
     for (int i = 0; i < 160; i++) {
-        linebuf_final[i] = palette[linebuf[i]];
+        linebuf_final[i] = pal_rgb[linebuf[i]];
     }
 
     memcpy(&framebuffer32[160*VID_LY], linebuf_final , 160*sizeof(uint32_t));

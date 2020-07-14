@@ -32,6 +32,9 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_SCX     0xFF43
 #define MEM_LINE    0xFF44
 #define MEM_DMA     0xFF46
+#define MEM_BGP     0xFF47
+#define MEM_OBP0    0xFF48
+#define MEM_OBP1    0xFF49
 
 int mem_init(uint8_t *romfile, int fsize);
 uint8_t* mem_addr(uint16_t addr);
