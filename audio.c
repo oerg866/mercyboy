@@ -145,8 +145,6 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
     case MEM_NR12:
     case MEM_NR22:
-        audio_volume[cidx] = AUDIO_VOLUME;
-        audio_update_volume(cidx);
         audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE) * ((float) audio_sample_rate / 64.0);
 
 #ifdef AUDIO_VERBOSE
@@ -170,6 +168,9 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
         if (chan->nr4 & AUDIO_TRIGGER_BIT) {
             audio_playing[cidx] = 1;
             audio_counter[cidx] = 0.0; // NOTE ON
+            // Trigger means load the volume from NR2 and start playing.
+            audio_volume[cidx] = chan->nr2 >> 4;
+            audio_update_volume(cidx);
             chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
 
 #ifdef AUDIO_VERBOSE
