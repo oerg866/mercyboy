@@ -145,6 +145,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
     case MEM_NR12:
     case MEM_NR22:
+    case MEM_NR42:
         audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE) * ((float) audio_sample_rate / 64.0);
 
 #ifdef AUDIO_VERBOSE
@@ -161,8 +162,8 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     case MEM_NR14:
     case MEM_NR23:  // Channel 2 (Square)
     case MEM_NR24:
-    case MEM_NR33:  // Channel 3 (Waveform)
-    case MEM_NR34:
+    case MEM_NR43:  // Channel 4 (Noise)
+    case MEM_NR44:
         ram_io[addr-0xFF00] = data;
         audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
         if (chan->nr4 & AUDIO_TRIGGER_BIT) {
