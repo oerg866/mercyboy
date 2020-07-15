@@ -123,7 +123,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     struct audio_channel * chan = &audio_chans[cidx];
 
 #ifdef AUDIO_VERBOSE
-    printf("AUDIO: Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
+    //printf("AUDIO: Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
 #endif
 
     switch(addr) {
@@ -149,6 +149,9 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
         audio_update_volume(cidx);
         audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE) * ((float) audio_sample_rate / 64.0);
 
+#ifdef AUDIO_VERBOSE
+        printf("AUDIO: CH %d SET envelope cycle %f, amplify mode %01x\n", cidx, audio_envelope_cycle[cidx], data & AUDIO_ENVELOPE_AMPLIFY);
+#endif
 
         break;
 
@@ -201,6 +204,10 @@ inline void audio_update_volume(int i) {
                      // max 0x0f          max 0x07
     audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * (INT16_MAX / (0x07*0x0f));   // L Update
     audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * (INT16_MAX / (0x07*0x0f));   // R Update
+#ifdef AUDIO_VERBOSE
+    printf("AUDIO: CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
+#endif
+
 }
 
 void audio_envelope_timer() {
@@ -211,17 +218,31 @@ void audio_envelope_timer() {
         audio_64hz_timer -= audio_64hz_cycle;
 
         for (int i = 0; i < 4; i++) {
-            audio_envelope_count[i] += 1.0;
-            // If a cycle for this envelope has been reached, reset it and deduct volume.
-            if (audio_envelope_count[i] >= audio_envelope_cycle[i]) {
-                if (audio_chans[i].nr2 & AUDIO_ENVELOPE_AMPLIFY)
-                    audio_volume[i] = (audio_volume[i] + 1) & 0x0f;
-                else {
-                    if (audio_volume[i])
-                        audio_volume[i]--;
+            if (audio_envelope_cycle[i] != 0.0) {
+                audio_envelope_count[i] += 1.0;
+                // If a cycle for this envelope has been reached, reset it and deduct volume.
+                if (audio_envelope_count[i] >= audio_envelope_cycle[i]) {
+                    audio_envelope_count[i] -= audio_envelope_cycle[i];
+                    if (audio_chans[i].nr2 & AUDIO_ENVELOPE_AMPLIFY) {
+
+                        audio_volume[i] = (audio_volume[i] + 1) & 0x0f;
+
+#ifdef AUDIO_VERBOSE
+                        printf("AUDIO: CH %d - increasing volume %02x\n", i, audio_volume[i]);
+#endif
+                    }
+                    else {
+
+                        if (audio_volume[i])
+                            audio_volume[i]--;
+
+#ifdef AUDIO_VERBOSE
+                        printf("AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
+#endif
+                    }
                 }
+                audio_update_volume(i);
             }
-            audio_update_volume(i);
         }
 
     }
@@ -242,7 +263,7 @@ void audio_length_timer() {
                     audio_length[i] -= 1;                           // decrease length
 
 #ifdef AUDIO_VERBOSE
-                printf("AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
+//              printf("AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
 #endif
                     if (!audio_length[i])                           // if we're at zero, decduct
                         audio_playing[i] = 0;                       // disable if length is over.
@@ -309,6 +330,7 @@ void audio_sdl_callback(void *udata, uint8_t *stream, int len) {
     }
 
     audio_length_timer();
+    audio_envelope_timer();
 
     // TODO... No brain power for this at the moment
     SAMPLE tmp[2];
