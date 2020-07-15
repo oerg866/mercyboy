@@ -25,8 +25,11 @@ static const float audio_sweep_times[8] = {0.0078, 0.0156, 0.0234, 0.00313, 0.03
 static float audio_divider[4] = {131072.0, 131072.0, 65536.0, 0.0};
 static float audio_cycle[4] = {0.0, 0.0, 0.0, 0.0};
 
-float audio_counter[4] = {0.0, 0.0, 0.0, 0.0};
-float audio_length[4] = {0.0, 0.0, 0.0, 0.0};
+static float audio_counter[4] = {0.0, 0.0, 0.0, 0.0};
+static float audio_envelope_cycle[4] = {0.0, 0.0, 0.0, 0.0};
+static float audio_envelope_count[4] = {0.0, 0.0, 0.0, 0.0};
+
+uint8_t audio_length[4] = {0,0,0,0};
 
 uint8_t audio_playing[4] = {0,0,0,0};
 
@@ -53,16 +56,66 @@ float audio_sec_per_sample = 0.0;
 const uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
 
 #define AUDIO_DUTY_CYCLE ((data & 0xC0) >> 6)
+#define AUDIO_LENGTH64 (data & 0x3F)
 #define AUDIO_VOLUME (data >> 4)
+
+#define AUDIO_SOUND_ENABLED (AUDIO_NR52 & 0x89)
+#define AUDIO_ENVELOPE (data & 0x07)
+#define AUDIO_ENVELOPE_AMPLIFY (1<<3)
+#define AUDIO_CONSECUTIVE (1<<6)
 
 #define MASTER_CLOCK
 
+#define NR1 0
+#define NR2 1
+#define NR3 2
+#define NR4 3
+#define NR5 4
+
+static float audio_256hz_cycle; // = ((float) AUDIO_SAMPLE_RATE / 256.0) / (float) audio_buffer_size);
+static float audio_64hz_cycle; // = ((float) AUDIO_SAMPLE_RATE / 64.0 / (float) audio_buffer_size);
+
+static float audio_256hz_timer = 0.0;
+static float audio_64hz_timer = 0.0;
+
 #define AUDIO_VERBOSE
 
-static SAMPLE audio_volume[4] = {0,0,0,0};
+static uint8_t audio_volume[4] = {0,0,0,0};
+static SAMPLE audio_output_l[4] = {0,0,0,0};
+static SAMPLE audio_output_r[4] = {0,0,0,0};
+static uint8_t audio_master_volume[2] = {0,0};
 static uint8_t audio_sample[4] = {0,0,0,0};
 
+uint8_t audio_handle_read(uint16_t addr) {
 
+
+    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
+//    uint8_t creg = (addr - 0xFF10) % 5;
+
+//    struct audio_channel * chan = &audio_chans[cidx];
+
+    uint8_t data = ram_io[addr - 0xFF10];
+
+    switch(addr) {
+
+    case MEM_NR14:
+    case MEM_NR24:
+    case MEM_NR34:
+    case MEM_NR44:
+        return data & (1<<6);   // only bit 6 can be read;
+
+    case MEM_NR30:
+        return data & (1<<7);   // only bit 7 can be read
+
+    case MEM_NR32:
+        return data & (0x03<<5);   // only bits 6-5 can be read
+
+    default:
+        return data;
+    }
+
+
+}
 
 void audio_handle_write(uint16_t addr, uint16_t data) {
 
@@ -75,74 +128,158 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
     switch(addr) {
 
-        // DUTY CYCLES
+    // DUTY CYCLES
 
-        case MEM_NR11:
-        case MEM_NR21:
-            audio_sample[cidx] = audio_square_waves[AUDIO_DUTY_CYCLE];
-            break;
+    case MEM_NR11:
+    case MEM_NR21:
+        audio_sample[cidx] = audio_square_waves[AUDIO_DUTY_CYCLE];
+    case MEM_NR41:
+        audio_length[cidx] = 64 - AUDIO_LENGTH64;
+        break;
 
-        // SET ENVELOPE
+    case MEM_NR31:
+        audio_length[cidx] = 256 - data;
+        break;
 
-        case MEM_NR12:
-        case MEM_NR22:
-            audio_volume[cidx] = AUDIO_VOLUME * (INT16_MAX/2)/15;
-            break;
+    // SET ENVELOPE
+
+    case MEM_NR12:
+    case MEM_NR22:
+        audio_volume[cidx] = AUDIO_VOLUME;
+        audio_update_volume(cidx);
+        audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE) * ((float) audio_sample_rate / 64.0);
+
+
+        break;
 
 
 
         // FREQUENCY CHANGES & NOTE TRIGGER
 
-        case MEM_NR13:  // Channel 1 (Square)
-        case MEM_NR14:
-        case MEM_NR23:  // Channel 2 (Square)
-        case MEM_NR24:
-        case MEM_NR33:  // Channel 3 (Waveform)
-        case MEM_NR34:
-            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
-            if (chan->nr4 & AUDIO_TRIGGER_BIT) {
-                audio_playing[cidx] = 1;
-                audio_counter[cidx] = 0.0; // NOTE ON
-                chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
+    case MEM_NR13:  // Channel 1 (Square)
+    case MEM_NR14:
+    case MEM_NR23:  // Channel 2 (Square)
+    case MEM_NR24:
+    case MEM_NR33:  // Channel 3 (Waveform)
+    case MEM_NR34:
+        ram_io[addr-0xFF00] = data;
+        audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
+        if (chan->nr4 & AUDIO_TRIGGER_BIT) {
+            audio_playing[cidx] = 1;
+            audio_counter[cidx] = 0.0; // NOTE ON
+            chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
 
 #ifdef AUDIO_VERBOSE
-                printf("AUDIO: Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
+            printf("AUDIO: Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
 #endif
 
+        }
+        return;
+
+    case MEM_NR50:  // Global stereo volume control
+        ram_io[addr-0xFF00] = data;
+        audio_master_volume[1] = (data & 0x70) >> 4;
+        audio_master_volume[0] = (data & 0x07);
+        audio_update_volume(0);
+        audio_update_volume(1);
+        audio_update_volume(2);
+        audio_update_volume(3);
+        return;
+    case MEM_NR52:  // Sound on/off, bit 3-0 are READ ONLY
+        ram_io[addr-0xFF00] = (data & 0xF0) | (ram_io[addr-0xFF00] & 0x0F);
+        return;
+    }
+
+
+    ram_io[addr-0xFF00] = data;
+
+
+}
+
+
+inline void audio_update_volume(int i) {
+                     // max 0x0f          max 0x07
+    audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * (INT16_MAX / (0x07*0x0f));   // L Update
+    audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * (INT16_MAX / (0x07*0x0f));   // R Update
+}
+
+void audio_envelope_timer() {
+    audio_64hz_timer += 1.0;
+
+    if (audio_64hz_timer >= audio_64hz_cycle) {
+
+        audio_64hz_timer -= audio_64hz_cycle;
+
+        for (int i = 0; i < 4; i++) {
+            audio_envelope_count[i] += 1.0;
+            // If a cycle for this envelope has been reached, reset it and deduct volume.
+            if (audio_envelope_count[i] >= audio_envelope_cycle[i]) {
+                if (audio_chans[i].nr2 & AUDIO_ENVELOPE_AMPLIFY)
+                    audio_volume[i] = (audio_volume[i] + 1) & 0x0f;
+                else {
+                    if (audio_volume[i])
+                        audio_volume[i]--;
+                }
             }
-            break;
+            audio_update_volume(i);
+        }
 
     }
 
 }
 
-inline SAMPLE square(unsigned int i) {
-    if (1) {
+void audio_length_timer() {
+    audio_256hz_timer += 1.0;
+    if (audio_256hz_timer >= audio_256hz_cycle) {
+        // 256 Hz Timer triggered, reset it and deduct lengths.
+        audio_256hz_timer -= audio_256hz_cycle;
+
+        // Process lengths for each channel
+
+        for (int i = 0; i < 4; i++) {
+            if (audio_playing[i]) {                                 // Is channel active?
+                if (!(audio_chans[i].nr4 & AUDIO_CONSECUTIVE)) {    // Is it in length mode?
+                    audio_length[i] -= 1;                           // decrease length
+
+#ifdef AUDIO_VERBOSE
+                printf("AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
+#endif
+                    if (!audio_length[i])                           // if we're at zero, decduct
+                        audio_playing[i] = 0;                       // disable if length is over.
+                }
+            }
+        }
+
+    }
+}
+
+inline void square(unsigned int i, SAMPLE *buffer) {
+    if (audio_playing[i]) {
         audio_counter[i] += 1.0;
         if (audio_counter[i] >= audio_cycle[i]) {
             audio_counter[i] -= audio_cycle[i];
             audio_sample[i] = (audio_sample[i] >> 1) | (audio_sample[i] << 7);
         }
 
-        if (audio_sample[i] & 0x01)
-            return audio_volume[i];
-        return -audio_volume[i];
+        if (audio_sample[i] & 0x01) {
+            buffer[0] = audio_output_l[i];
+            buffer[1] = audio_output_r[i];
+        } else {
+            buffer[0] = (-audio_output_l[i]);
+            buffer[1] = (-audio_output_r[i]);
+        }
 
+        // If channel L or R output is disabled just null it.
+        if (!(AUDIO_NR51 & (1 << i)))
+            buffer[0] = 0;
+
+        if (!(AUDIO_NR51 & (1 << (i+4))))
+            buffer[1] = 0;
 
     } else {
-        return 0;
+        buffer[0] = 0;
+        buffer[1] = 0;
     }
-}
-
-
-inline void audio_do_sweep() {
-
-    // TODO
-}
-
-inline void audio_do_env() {
-
-    // TODO
 }
 
 void audio_sdl_callback(void *udata, uint8_t *stream, int len) {
@@ -164,22 +301,37 @@ void audio_sdl_callback(void *udata, uint8_t *stream, int len) {
 
     //    printf ("AUDIO: Filling buffer: udata = %x, stream = %x, len = %d\n", (unsigned int) udata, (unsigned int) stream, len);
 
-    // TODO... No brain power for this at the moment
-    SAMPLE ch1, ch2, ch3, ch4;
-    for (int i = 0; i < (len>>1); i+=2) {
-        ch1 = square(0);
-        ch1 += square(1);
-        output[i] = ch1;
-        output[i+1] = ch1;
+
+    // if audio is disabled just zero the buffer and go away.
+    if (!AUDIO_SOUND_ENABLED) {
+        memset(stream, 0, len);
+        return;
     }
 
-//    memset(stream, 0, len);
+    audio_length_timer();
+
+    // TODO... No brain power for this at the moment
+    SAMPLE tmp[2];
+
+    for (int i = 0; i < (len>>1); i+=2) {
+        output[i] = 0;
+        output[i+1] = 0;
+        square(0, tmp);
+        output[i] += tmp[0]; output[i+1] += tmp[1];
+        square(1, tmp);
+        output[i] += tmp[0]; output[i+1] += tmp[1];
+    }
+
 
 }
 
 void audio_sdl_init() {
 
+    audio_sample_rate = AUDIO_SAMPLE_RATE;
     audio_sec_per_sample = 1.0 / (float) audio_sample_rate;
+    audio_buffer_size = AUDIO_BUFFER_SIZE;
+    audio_256hz_cycle = ((float) audio_sample_rate / 256.0) / (float) audio_buffer_size;
+    audio_64hz_cycle = ((float) audio_sample_rate / 64.0) / (float) audio_buffer_size;
 
     printf ("AUDIO: Seconds per sample: %f\n", audio_sec_per_sample);
 

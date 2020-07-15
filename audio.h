@@ -54,8 +54,9 @@ extern struct audio_channel * audio_chans;
 extern float audio_timer;
 extern uint8_t *audio_wavedata;
 
-SAMPLE square(unsigned int i);
+void square(unsigned int i, SAMPLE *buffer);
 void audio_handle_write(uint16_t addr, uint16_t data);
+void audio_update_volume(int i);
 void audio_sdl_init();
 void audio_sdl_callback(void *udata, uint8_t *stream, int len);
 

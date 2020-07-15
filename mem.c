@@ -390,7 +390,6 @@ void cpu_write8(uint16_t addr, uint8_t data) {
          */
 
         if ((addr >= 0xFF10) && (addr <= 0xFF26)) {
-            ram_io[addr-0xFF00] = data;
             audio_handle_write(addr, data);
         }
 
