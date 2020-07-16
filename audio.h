@@ -42,6 +42,8 @@
 #define AUDIO_ENV_ATTENUATE (1<<3)
 #define AUDIO_ENV_SWEEP_N (0x07)
 
+#define AUDIO_NOISE_MODE (1<<3)
+
 #define AUDIO_TIMED (1<<6)
 
 #define SAMPLE int16_t     // S16
