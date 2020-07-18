@@ -6,101 +6,70 @@
 #include "mem.c"
 #include "sys.c"
 
-static uint8_t *audio_chunk;
-static uint32_t audio_len;
-static uint8_t *audio_pos;
-
-uint8_t * audio_wavedata = &ram_io[0x30];
-
+// Pointer to I/O audio region in memory. This is so that the code is easier to read when accessing registers all over the place.
 struct audio_channel* audio_chans = (struct audio_channel*) &AUDIO_NR10;
 
-static uint32_t audio_buffer_size = AUDIO_BUFFER_SIZE;
-static uint32_t audio_sample_rate = AUDIO_SAMPLE_RATE;
+// Pointer to arbitrary waveform data for waveform channel.
+static uint8_t * audio_wavedata = &ram_io[0x30];
 
-static float audio_sweep_count[4] = {0.0, 0.0, 0.0, 0.0};
-
+// Predfined sweep lengths. Not implemented yet so it is unused.
 static const float audio_sweep_times[8] = {0.0078, 0.0156, 0.0234, 0.00313, 0.0391, 0.0469, 0.0547};
 
+// Sweep cycle counter. Not implemented yet so it is unused.
+static float audio_sweep_count[4] = {0.0, 0.0, 0.0, 0.0};
 
-static float audio_divider[4] = {131072.0, 131072.0, 65536.0, 0.0};
-static float audio_cycle[4] = {0.0, 0.0, 0.0, 0.0};
+// Predefined array of samples for each square wave duty cycle type.
+const  uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
 
-static float audio_counter[4] = {0.0, 0.0, 0.0, 0.0};
-static float audio_envelope_cycle[4] = {0.0, 0.0, 0.0, 0.0};
-static float audio_envelope_count[4] = {0.0, 0.0, 0.0, 0.0};
+float  audio_timer = 0.0;                           // Constant audio timer. Globally available variable (so that video can be timed with it for example.
 
-uint8_t audio_length[4] = {0,0,0,0};
+static float audio_256hz_cycle;                     // Cycle length for 256hz with respect to current sample rate
+static float audio_64hz_cycle;                      // Cycle length for 64hz with respect to current sample rate
 
-uint8_t audio_playing[4] = {0,0,0,0};
+static float audio_256hz_timer = 0.0;               // Timer counter for 256hz clock
+static float audio_64hz_timer = 0.0;                // Timer counter for 64hz clock
 
-#define ENV_STEP 1.0/64.0
+const  float audio_divider[4] = {131072.0, 131072.0, 65536.0, 0.0};   // Frequency dividers for each channel.
+                                                                      // Note that Noise has very different frequency calculation so it's a dummy value (0.0)
 
-SDL_AudioSpec audio_spec;
+static float audio_counter[4] = {0.0, 0.0, 0.0, 0.0};           // Note frequency cycle counter for each channel
+static float audio_envelope_count[4] = {0.0, 0.0, 0.0, 0.0};    // Envelope cycle counter
 
-float audio_timer = 0.0;
+static float audio_cycle[4] = {0.0, 0.0, 0.0, 0.0};             // Note frequency cycle length
+static float audio_envelope_cycle[4] = {0.0, 0.0, 0.0, 0.0};    // Envelope cycle length
 
-float audio_sec_per_sample = 0.0;
+static uint8_t audio_length[4] = {0,0,0,0};         // Length values for all channels
+static uint8_t audio_playing[4] = {0,0,0,0};        // Playing Y/N flags for all channels
 
-#define SAMPLE int16_t     // S16
+static uint8_t audio_volume[4] = {0,0,0,0};         // Current volume as updated by either initial volume or envelope.
+static uint8_t audio_master_volume[2] = {0,0};      // Master volume for L and R channels.
+static uint8_t audio_sample[4] = {0,0,0,0};         // Current type of square wave output. (One entry of audio_square_waves gets put here)
 
-#define SAMPLE_D125     0x01
-#define SAMPLE_D25      0x81
-#define SAMPLE_D50      0x8F
-#define SAMPLE_D75      0x7E
+static uint8_t audio_noise_lut7[128];               // 7-stage LFSR LUT
+static uint8_t audio_noise_lut15[32768];            // 15-stage LFSR LUT
 
-#define DUTY_125        0x00
-#define DUTY_25         0x40
-#define DUTY_50         0x80
-#define DUTY_75         0xC0
+static uint16_t audio_noise_idx = 0;                // index of current entry in LFSR LUT
+static uint8_t audio_waveform_idx = 0;              // index of current sample in waveform data
 
-const uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
+static SAMPLE audio_waveform_output[2] = {0,0};
+static SAMPLE audio_output_l[4] = {0,0,0,0};        // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
+static SAMPLE audio_output_r[4] = {0,0,0,0};        // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
 
-#define AUDIO_DUTY_CYCLE ((data & 0xC0) >> 6)
-#define AUDIO_LENGTH64 (data & 0x3F)
-#define AUDIO_VOLUME (data >> 4)
 
-#define AUDIO_SOUND_ENABLED (AUDIO_NR52 & 0x89)
-#define AUDIO_ENVELOPE (data & 0x07)
-#define AUDIO_ENVELOPE_AMPLIFY (1<<3)
-#define AUDIO_CONSECUTIVE (1<<6)
-
-#define MASTER_CLOCK 4194304
-
-#define NR1 0
-#define NR2 1
-#define NR3 2
-#define NR4 3
-#define NR5 4
-
-static float audio_256hz_cycle; // = ((float) AUDIO_SAMPLE_RATE / 256.0) / (float) audio_buffer_size);
-static float audio_64hz_cycle; // = ((float) AUDIO_SAMPLE_RATE / 64.0 / (float) audio_buffer_size);
-
-static float audio_256hz_timer = 0.0;
-static float audio_64hz_timer = 0.0;
-
-#define AUDIO_VERBOSE
-
-static uint8_t audio_volume[4] = {0,0,0,0};
-static SAMPLE audio_output_l[4] = {0,0,0,0};
-static SAMPLE audio_output_r[4] = {0,0,0,0};
-static uint8_t audio_master_volume[2] = {0,0};
-static uint8_t audio_sample[4] = {0,0,0,0};
-
-static float audio_noise_cycle = 0.0;
-static uint8_t audio_noise_lut7[128];
-static uint8_t audio_noise_lut15[32768];
-
-static uint16_t audio_noise_idx = 0;
+/************************************************************************************
+ *                                AUDIO I/O FUNCTIONS                               *
+ ************************************************************************************/
 
 uint8_t audio_handle_read(uint16_t addr) {
-
-
-    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
-//    uint8_t creg = (addr - 0xFF10) % 5;
-
-//    struct audio_channel * chan = &audio_chans[cidx];
+    // Called by memory R/W handler
+    // Handle reads from Audio I/O region.
 
     uint8_t data = ram_io[addr - 0xFF10];
+
+#ifdef AUDIO_VERBOSE
+    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
+    printf("AUDIO: Handle read, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
+#endif
 
     switch(addr) {
 
@@ -119,8 +88,174 @@ uint8_t audio_handle_read(uint16_t addr) {
     default:
         return data;
     }
+}
 
 
+void audio_handle_write(uint16_t addr, uint16_t data) {
+    // Called by memory R/W handler
+    // Handle writes to Audio I/O region.
+
+    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
+    struct audio_channel * chan = &audio_chans[cidx];
+
+#ifdef AUDIO_VERBOSE
+    printf("AUDIO: Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
+#endif
+
+    switch(addr) {
+
+    // DUTY CYCLES
+
+    case MEM_NR11:
+    case MEM_NR21:
+        audio_sample[cidx] = audio_square_waves[AUDIO_DUTY_CYCLE];
+        audio_length[cidx] = 64 - AUDIO_LENGTH64;
+        break;
+
+    case MEM_NR41:
+        audio_length[cidx] = 64 - AUDIO_LENGTH64;
+        break;
+
+    case MEM_NR31:
+        // Noise channel note length can be up to 256 ticks
+        audio_length[cidx] = 256 - data;
+        break;
+
+
+
+    // SET ENVELOPE
+
+    case MEM_NR12:
+    case MEM_NR22:
+    case MEM_NR42:
+        audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE);
+
+#ifdef AUDIO_VERBOSE
+        printf("AUDIO: CH %d SET envelope cycle %f, amplify mode %01x\n", cidx, audio_envelope_cycle[cidx], data & AUDIO_ENVELOPE_AMPLIFY);
+#endif
+
+        break;
+
+    // WAVEFORM VOLUME
+
+    case MEM_NR32:
+        data &= (0x03 << 5);
+        ram_io[addr-0xFF00] = data;
+        break;
+
+    case MEM_NR30:  // Channel 3 (waveform)
+        data &= 0x80;
+        ram_io[addr-0xFF00] = data;
+
+        // If ON bit is reset then turn off the channel.
+        if (!data)
+            audio_disable_channel(cidx);
+
+        break;
+
+    // FREQUENCY CHANGES & NOTE TRIGGER
+
+    case MEM_NR43:  // Channel 4 (Noise)
+        ram_io[addr-0xFF00] = data;
+        audio_set_noise_frequency(data);
+        break;
+
+#ifdef AUDIO_VERBOSE
+            printf("AUDIO: Note on on channel %d:, cycle = %f", cidx, audio_cycle[cidx]);
+#endif
+
+        break;
+
+    case MEM_NR13:  // Channel 1 (Square)
+    case MEM_NR14:
+    case MEM_NR23:  // Channel 2 (Square)
+    case MEM_NR24:
+    case MEM_NR33:  // Channel 3 (Waveform)
+    case MEM_NR34:
+    case MEM_NR44:  // Channel 4 (Noise)
+
+        ram_io[addr-0xFF00] = data;
+
+        // Set frequency except for noise
+        if (cidx <= 1)
+            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
+        else if (cidx == 2)
+            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 32.0;
+
+        if (chan->nr4 & AUDIO_TRIGGER_BIT) {
+            audio_counter[cidx] = 0.0; // NOTE ON counter reset
+
+            // Enable channel
+            audio_enable_channel(cidx);
+
+            // Trigger means load the volume from NR2 and start playing, except for waveform channel
+            if (cidx != 2)
+                audio_volume[cidx] = chan->nr2 >> 4;
+
+            // If we're on the waveform channel we do have to reset our index. And set max volume
+            if (cidx == 2) {
+                audio_waveform_idx = 0;
+                audio_volume[cidx] = 0x0f;
+                audio_update_waveform_data();
+            }
+
+            // If we're on the noise channel we do have to reset our index.
+            if (cidx == 3)
+                audio_noise_idx = 0;
+
+
+            audio_update_volume(cidx);
+            chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
+
+#ifdef AUDIO_VERBOSE
+            printf("AUDIO: Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
+#endif
+
+        }
+        return;
+
+    case MEM_NR50:  // Global stereo volume control
+        ram_io[addr-0xFF00] = data;
+        audio_master_volume[1] = (data & 0x70) >> 4;
+        audio_master_volume[0] = (data & 0x07);
+        audio_update_volume(0);
+        audio_update_volume(1);
+        audio_update_volume(2);
+        audio_update_volume(3);
+        return;
+    case MEM_NR52:  // Sound on/off, bit 3-0 are READ ONLY
+        ram_io[addr-0xFF00] = (data & 0xF0) | (ram_io[addr-0xFF00] & 0x0F);
+        return;
+    }
+    ram_io[addr-0xFF00] = data;
+}
+
+
+/************************************************************************************
+ *                             CHANNEL UPDATE FUNCTIONS                             *
+ ************************************************************************************/
+
+
+inline void audio_disable_channel (int i) {
+    // Disable a channel (Disable playing flag in emulator + disable in gameboy register)
+
+#ifdef AUDIO_VERBOSE
+    if (i==0)
+    printf("AUDIO: Disabling channel %d\n", i);
+#endif
+    audio_playing[i] = 0;
+    AUDIO_NR52 &= ~(1 << i);
+}
+
+inline void audio_enable_channel (int i) {
+    // Enable a channel (Enable playing flag in emulator + enable in gameboy register)
+
+#ifdef AUDIO_VERBOSE
+    printf("AUDIO: Enabling channel %d\n", i);
+#endif
+
+    audio_playing[i] = 1;
+    AUDIO_NR52 |= (1 << i);
 }
 
 void audio_set_noise_frequency(uint8_t data) {
@@ -157,125 +292,51 @@ void audio_set_noise_frequency(uint8_t data) {
 
 }
 
-void audio_handle_write(uint16_t addr, uint16_t data) {
-
-    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
-    struct audio_channel * chan = &audio_chans[cidx];
-
-#ifdef AUDIO_VERBOSE
-    //printf("AUDIO: Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
-#endif
-
-    switch(addr) {
-
-    // DUTY CYCLES
-
-    case MEM_NR11:
-    case MEM_NR21:
-        audio_sample[cidx] = audio_square_waves[AUDIO_DUTY_CYCLE];
-    case MEM_NR41:
-        audio_length[cidx] = 64 - AUDIO_LENGTH64;
-        break;
-
-    case MEM_NR31:
-        audio_length[cidx] = 256 - data;
-        break;
-
-    // SET ENVELOPE
-
-    case MEM_NR12:
-    case MEM_NR22:
-    case MEM_NR42:
-        audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE);
-
-#ifdef AUDIO_VERBOSE
-        printf("AUDIO: CH %d SET envelope cycle %f, amplify mode %01x\n", cidx, audio_envelope_cycle[cidx], data & AUDIO_ENVELOPE_AMPLIFY);
-#endif
-
-        break;
-
-
-
-        // FREQUENCY CHANGES & NOTE TRIGGER
-
-    case MEM_NR43:  // Channel 4 (Noise)
-        ram_io[addr-0xFF00] = data;
-        audio_set_noise_frequency(data);
-        break;
-    case MEM_NR44:  // Channel 4 (Noise)
-        ram_io[addr-0xFF00] = data;
-        if (chan->nr4 & AUDIO_TRIGGER_BIT) {
-            audio_playing[cidx] = 1;
-            audio_counter[cidx] = 0.0;
-            audio_noise_idx = 0;
-            // Trigger means load the volume from NR2 and start playing.
-            audio_volume[cidx] = chan->nr2 >> 4;
-            audio_update_volume(cidx);
-            chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
-            AUDIO_NR52 |= (1 << cidx);
-        }
-
-#ifdef AUDIO_VERBOSE
-            printf("AUDIO: Note on on channel %d:, cycle = %f", cidx, audio_cycle[cidx]);
-#endif
-
-        break;
-
-    case MEM_NR13:  // Channel 1 (Square)
-    case MEM_NR14:
-    case MEM_NR23:  // Channel 2 (Square)
-    case MEM_NR24:
-    case MEM_NR33:  // Channel 3 (Waveform)
-    case MEM_NR34:
-        ram_io[addr-0xFF00] = data;
-        audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
-        if (chan->nr4 & AUDIO_TRIGGER_BIT) {
-            audio_playing[cidx] = 1;
-            audio_counter[cidx] = 0.0; // NOTE ON
-            // Trigger means load the volume from NR2 and start playing.
-            audio_volume[cidx] = chan->nr2 >> 4;
-            audio_update_volume(cidx);
-            chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
-            // Update sound ON flag
-            AUDIO_NR52 |= (1 << cidx);
-
-#ifdef AUDIO_VERBOSE
-            printf("AUDIO: Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
-#endif
-
-        }
-        return;
-
-    case MEM_NR50:  // Global stereo volume control
-        ram_io[addr-0xFF00] = data;
-        audio_master_volume[1] = (data & 0x70) >> 4;
-        audio_master_volume[0] = (data & 0x07);
-        audio_update_volume(0);
-        audio_update_volume(1);
-        audio_update_volume(2);
-        audio_update_volume(3);
-        return;
-    case MEM_NR52:  // Sound on/off, bit 3-0 are READ ONLY
-        ram_io[addr-0xFF00] = (data & 0xF0) | (ram_io[addr-0xFF00] & 0x0F);
-        return;
-    }
-
-
-    ram_io[addr-0xFF00] = data;
-
-
-}
-
-
 inline void audio_update_volume(int i) {
                      // max 0x0f          max 0x07
-    audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * (INT16_MAX / (0x07*0x0f));   // L Update
-    audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * (INT16_MAX / (0x07*0x0f));   // R Update
+    audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * ((SAMPLE_MAX/4) / (0x07*0x0f));   // L Update
+    audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * ((SAMPLE_MAX/4) / (0x07*0x0f));   // R Update
+
+    if (i==2) {
+        audio_update_waveform_data();   // If we're updating volume for the waveform channel we must also update the waveform data
+    }
+
 #ifdef AUDIO_VERBOSE
-//    printf("AUDIO: CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
+    printf("AUDIO: CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
 #endif
 
 }
+
+inline void audio_update_waveform_data() {
+
+    // Update waveform data when requested
+
+    if ((AUDIO_NR32 >> 5)) {
+
+        // If we are not muted
+
+        SAMPLE tmp = audio_wavedata[audio_waveform_idx>>1];
+
+        if (audio_waveform_idx & 1) {   // If LSB = 1 then we have to shift to the right by 4 additional bits.
+            audio_waveform_output[0] = ((((tmp & 0x0F) - 8) >> ((AUDIO_NR32 >>5) - 1)) * (audio_output_l[2] / 0x0F)); //
+            audio_waveform_output[1] = ((((tmp & 0x0F) - 8) >> ((AUDIO_NR32 >>5) - 1)) * (audio_output_r[2] / 0x0F)); //
+        } else {                        // if not, we AND the lower 4 bits.
+            audio_waveform_output[0] = ((((tmp >>   4) - 8) >> ((AUDIO_NR32 >>5) - 1)) * (audio_output_l[2] / 0x0F)); //
+            audio_waveform_output[1] = ((((tmp >>   4) - 8) >> ((AUDIO_NR32 >>5) - 1)) * (audio_output_r[2] / 0x0F)); //
+        }
+
+    } else {
+
+        // We are muted so we just null the output.
+        audio_waveform_output[0] = 0;
+        audio_waveform_output[1] = 0;
+    }
+}
+
+
+/************************************************************************************
+ *                                   TIMER FUNCTIONS                                *
+ ************************************************************************************/
 
 void audio_envelope_timer() {
     audio_64hz_timer += 1.0;
@@ -285,7 +346,10 @@ void audio_envelope_timer() {
         audio_64hz_timer -= audio_64hz_cycle;
 
         for (int i = 0; i < 4; i++) {
-            if (audio_envelope_cycle[i] != 0.0) {
+
+            // Don't do envelopes if the step is 0 or we're processing channel 3 (waveform)
+
+            if ((i != 2) && (audio_envelope_cycle[i] != 0.0)) {
                 audio_envelope_count[i] += 1.0;
                 // If a cycle for this envelope has been reached, reset it and deduct volume.
                 if (audio_envelope_count[i] >= audio_envelope_cycle[i]) {
@@ -302,9 +366,12 @@ void audio_envelope_timer() {
 
                         if (audio_volume[i])
                             audio_volume[i]--;
+                        else {
+                            audio_disable_channel(i);
+                        }
 
 #ifdef AUDIO_VERBOSE
-                        printf("AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
+//                        printf("AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
 #endif
                     }
                 }
@@ -326,7 +393,7 @@ void audio_length_timer() {
 
         for (int i = 0; i < 4; i++) {
             if (audio_playing[i]) {                                 // Is channel active?
-                if (!(audio_chans[i].nr4 & AUDIO_CONSECUTIVE)) {    // Is it in length mode?
+                if (audio_chans[i].nr4 & AUDIO_CONSECUTIVE) {    // Is it in length mode?
                     audio_length[i] -= 1;                           // decrease length
 
 #ifdef AUDIO_VERBOSE
@@ -334,14 +401,52 @@ void audio_length_timer() {
 #endif
                     if (!audio_length[i])                           // if we're at zero, decduct
                     {
-                        AUDIO_NR52 &= ~(1 << i);
-                        audio_playing[i] = 0;                       // disable if length is over.
+                        // Disable channel if length is over
+                        audio_disable_channel(i);
                     }
                 }
             }
         }
 
     }
+}
+
+/************************************************************************************
+ *                             AUDIO GENERATOR FUNCTIONS                            *
+ ************************************************************************************/
+
+void audio_process_chunk(SAMPLE *stream, int len) {
+    // This function should be called whenever a chunk of audio needs to be processed.
+    // len is the length in SAMPLEs that is requested.
+    // We use the global variable audio_sample_rate in some calculations so make sure this is correctly set.
+
+#ifdef USE_AUDIO_TIMING
+    audio_timer += (float) len / (float) audio_sample_rate;
+#endif
+
+    // if audio is disabled just zero the buffer and go away.
+    if (!AUDIO_SOUND_ENABLED) {
+        memset(stream, 0, len * sizeof(SAMPLE) * audio_amount_channels);
+        return;
+    }
+
+    len *= audio_amount_channels; // Stereo (two channels), so double the length
+
+    for (int i = 0; i < len; i += audio_amount_channels) {
+        // Process length and envelope timers.
+        audio_length_timer();
+        audio_envelope_timer();
+
+        stream[i+0] = 0;
+        stream[i+1] = 0;
+
+        square(0, &stream[i]);     // Mix in Channel 1 (Square)
+        square(1, &stream[i]);     // Mix in Channel 2 (Square)
+        waveform(&stream[i]);      // Mix in Channel 3 (Waveform)
+        noise(&stream[i]);         // Mix in Channel 4 (Noise)
+
+    }
+
 }
 
 inline void square(unsigned int i, SAMPLE *buffer) {
@@ -352,31 +457,43 @@ inline void square(unsigned int i, SAMPLE *buffer) {
             audio_sample[i] = (audio_sample[i] >> 1) | (audio_sample[i] << 7);
         }
 
-        if (audio_sample[i] & 0x01) {
-            buffer[0] = audio_output_l[i];
-            buffer[1] = audio_output_r[i];
-        } else {
-            buffer[0] = (-audio_output_l[i]);
-            buffer[1] = (-audio_output_r[i]);
+        if (AUDIO_NR51 & (1 << 3)) {
+            if (audio_sample[i] & 0x01) { buffer[0] += audio_output_l[i]; }
+                                   else { buffer[0] -= audio_output_l[i]; }
         }
 
-        // If channel L or R output is disabled just null it.
-        if (!(AUDIO_NR51 & (1 << i)))
-            buffer[0] = 0;
-
-        if (!(AUDIO_NR51 & (1 << (i+4))))
-            buffer[1] = 0;
-
-    } else {
-        buffer[0] = 0;
-        buffer[1] = 0;
+        if (AUDIO_NR51 & (1 << (3+4))) {
+            if (audio_sample[i] & 0x01) { buffer[1] += audio_output_r[i]; }
+                                   else { buffer[1] -= audio_output_r[i]; }
+        }
     }
 }
 
-static inline void noise(SAMPLE *buffer) {
+inline void waveform(SAMPLE *buffer) {
+
+    if (audio_playing[2]) {
+        audio_counter[2] += 1.0;
+        if(audio_counter[2] >= audio_cycle[2]) {
+            audio_counter[2] -= audio_cycle[2];
+            audio_waveform_idx = (audio_waveform_idx + 1) & 0x1F;
+
+            audio_update_waveform_data();
+
+        }
+
+        buffer[0] += audio_waveform_output[0];
+        buffer[1] += audio_waveform_output[1];
+
+    }
+
+}
+
+inline void noise(SAMPLE *buffer) {
 
     if (audio_playing[3]) {
+
         audio_counter[3] += 1.0;
+
         if(audio_counter[3] >= audio_cycle[3]) {
             audio_counter[3] -= audio_cycle[3];
             audio_noise_idx++;
@@ -387,86 +504,49 @@ static inline void noise(SAMPLE *buffer) {
         }
 
         uint8_t sample;
+
         if (AUDIO_NR43 & AUDIO_NOISE_MODE)
             sample = audio_noise_lut7[audio_noise_idx];
         else
             sample = audio_noise_lut15[audio_noise_idx];
 
-        if (sample & 0x01) {
-            buffer[0] = audio_output_l[3];
-            buffer[1] = audio_output_r[3];
-        } else {
-            buffer[0] = (-audio_output_l[3]);
-            buffer[1] = (-audio_output_r[3]);
+        if (AUDIO_NR51 & (1 << 3)) {
+            if (sample & 0x01) buffer[0] += audio_output_l[3];
+                          else buffer[0] -= audio_output_l[3];
         }
 
-        // If channel L or R output is disabled just null it.
-        if (!(AUDIO_NR51 & (1 << 3)))
-            buffer[0] = 0;
+        if (AUDIO_NR51 & (1 << (3+4))) {
+            if (sample & 0x01) buffer[1] += audio_output_r[3];
+                          else buffer[1] -= audio_output_r[3];
+        }
 
-        if (!(AUDIO_NR51 & (1 << (3+4))))
-            buffer[1] = 0;
-    } else {
-        buffer[0] = 0;
-        buffer[1] = 0;
     }
 
 }
 
-void audio_sdl_callback(void *udata, uint8_t *stream, int len) {
+/************************************************************************************
+ *                              INIT AND DEINIT FUNCTIONS                           *
+ ************************************************************************************/
 
-    /* The audio function callback takes the following parameters:
-       stream:  A pointer to the audio buffer to be filled
-       len:     The length (in bytes) of the audio buffer
-    */
+void audio_init() {
+    audio_backend_init();
+    audio_256hz_cycle = ((float) audio_sample_rate / 256.0);
+    audio_64hz_cycle = ((float) audio_sample_rate / 64.0);
+    audio_generate_luts();
+}
 
-    // Get int16t buffer
-
-    SAMPLE* output = (SAMPLE*) stream;
-    // increase audio timer
-
-#ifdef USE_AUDIO_TIMING
-    audio_timer += (float) audio_buffer_size / (float) audio_sample_rate;
-#endif
-
-
-    //    printf ("AUDIO: Filling buffer: udata = %x, stream = %x, len = %d\n", (unsigned int) udata, (unsigned int) stream, len);
-
-
-    // if audio is disabled just zero the buffer and go away.
-    if (!AUDIO_SOUND_ENABLED) {
-        memset(stream, 0, len);
-        return;
-    }
-
-    audio_length_timer();
-    audio_envelope_timer();
-
-    // TODO... No brain power for this at the moment
-    SAMPLE tmp[2];
-
-    for (int i = 0; i < (len>>1); i+=2) {
-        output[i] = 0;
-        output[i+1] = 0;
-//        square(0, tmp);
-//        output[i] += tmp[0]; output[i+1] += tmp[1];
-        square(1, tmp);
-        output[i] += tmp[0]; output[i+1] += tmp[1];
-        noise(tmp);
-        output[i] += tmp[0]; output[i+1] += tmp[1];
-//        noise(tmp);
-//        output[i] += tmp[0]; output[i+1] += tmp[1];
-    }
-
-
+void audio_deinit() {
+    audio_backend_deinit();
 }
 
 void audio_generate_luts() {
 
+    // Generate LUTs for the LFSR.
+
     uint8_t lfsr7 = 0x7F;
     uint16_t lfsr15 = 0x7FFF;
 
-    // We have two LFSR for noise channel.
+    // We have two LFSR LUTs for noise channel.
     // New MSB = Old Bit 1 XOR Old Bit 0a
     // Output = Bit 0
 
@@ -484,46 +564,3 @@ void audio_generate_luts() {
 
 }
 
-void audio_sdl_init() {
-
-    audio_sample_rate = AUDIO_SAMPLE_RATE;
-    audio_sec_per_sample = 1.0 / (float) audio_sample_rate;
-    audio_buffer_size = AUDIO_BUFFER_SIZE;
-    audio_256hz_cycle = ((float) audio_sample_rate / 256.0) / (float) audio_buffer_size;
-    audio_64hz_cycle = ((float) audio_sample_rate / 64.0) / (float) audio_buffer_size;
-
-    audio_generate_luts();
-
-    printf ("AUDIO: Seconds per sample: %f\n", audio_sec_per_sample);
-
-    audio_spec.freq = audio_sample_rate;
-    audio_spec.format = AUDIO_S16;
-    audio_spec.channels = 2;
-    audio_spec.samples = audio_buffer_size;
-    audio_spec.callback = audio_sdl_callback;
-    audio_spec.userdata = NULL;
-
-    printf ("Audio Channel 1 Address: %x\n", &audio_chans[0]);
-    printf ("Audio Channel 2 Address: %x\n", &audio_chans[1]);
-    printf ("Audio Channel 3 Address: %x\n", &audio_chans[2]);
-    printf ("Audio Channel 4 Address: %x\n", &audio_chans[3]);
-
-    if ( SDL_OpenAudio(&audio_spec, NULL) < 0 ) {
-        printf("AUDIO: Couldn't open audio: %s\n", SDL_GetError());
-    }
-
-    audio_chunk = malloc(audio_buffer_size * sizeof(SAMPLE));
-
-    memset(audio_chunk, 0, audio_buffer_size * sizeof(SAMPLE));
-
-    audio_pos = audio_chunk;
-
-    SDL_PauseAudio(0);
-
-}
-
-void audio_sdl_deinit() {
-
-    free(audio_chunk);
-
-}

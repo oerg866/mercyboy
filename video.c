@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "mem.h"
 #include "sys.h"
+#include "audio.h"
 
 /*
  * Mode 0:
@@ -442,7 +443,6 @@ void video_draw_line() {
 void video_update_framebuffer() {
 
 #ifdef USE_AUDIO_TIMING
-#include "audio.h"
     while (audio_timer < 0.016);
     audio_timer = audio_timer - 0.016;
 #else

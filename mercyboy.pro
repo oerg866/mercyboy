@@ -1,14 +1,23 @@
 TEMPLATE = app
+
 CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
+
 win32-g++ {
+DEFINES += AUDIO_SDL2
 LIBS += -lmingw32
 }
 
-LIBS += -lSDL2main
-LIBS += -lSDL2
+linux-g++ {
+DEFINES += AUDIO_SDL2
+}
+
+contains(DEFINES, AUDIO_SDL2) {
+    LIBS += -lSDL2main
+    LIBS += -lSDL2
+}
 
 SOURCES += \
     main.c \
@@ -19,14 +28,16 @@ SOURCES += \
     mem.c \
     sys.c \
     video.c \
-    audio.c
+    audio.c \
+    audio_sdl2.c
 
 HEADERS += \
     cpu.h \
     mem.h \
     sys.h \
     video.h \
-    audio.h
+    audio.h \
+    audio_sdl2.h
 
 DISTFILES += \
     LICENSE \

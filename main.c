@@ -14,7 +14,6 @@
 
 #include <SDL2/SDL.h>
 
-
 int main(int argc, char* argv[])
 //int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -73,7 +72,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    audio_sdl_init();
+    audio_init();
     video_init(window_surface, window);
 
 
