@@ -154,6 +154,9 @@ uint8_t cpu_read8_force(uint16_t addr) {
     uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
                         | (sys_carttype == CT_MBC1RAM)
                         | (sys_carttype == CT_MBC1RAMBATT);
+    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
+                        | (sys_carttype == CT_MBC2BATT);
+
 
     if          (addr < 0x4000) {
 
@@ -165,7 +168,7 @@ uint8_t cpu_read8_force(uint16_t addr) {
         // VRAM write 8000 - 9FFF
         return vram[addr - 0x8000];
     } else if   (addr < 0xC000) {
-        if (sys_ismbc1 && sys_extmem_en)
+        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
             return ram2[addr-0xA000];
     } else if   (addr < 0xE000) {
         return ram1[addr-0xC000];
@@ -226,6 +229,9 @@ uint16_t cpu_read16_force(uint16_t addr) {
     uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
                         | (sys_carttype == CT_MBC1RAM)
                         | (sys_carttype == CT_MBC1RAMBATT);
+    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
+                        | (sys_carttype == CT_MBC2BATT);
+
 
     if          (addr < 0x4000) {
         return *(uint16_t*) &rom1[addr];
@@ -236,7 +242,7 @@ uint16_t cpu_read16_force(uint16_t addr) {
         return *(uint16_t*) &vram[addr - 0x8000];
     } else if   (addr < 0xC000) {
         // RAM 2
-        if (sys_ismbc1 && sys_extmem_en)
+        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
             return *(uint16_t*) &ram2[addr-0xA000];
     } else if   (addr < 0xE000) {
         return *(uint16_t*) &ram1[addr-0xC000];
@@ -281,36 +287,37 @@ void cpu_write8(uint16_t addr, uint8_t data) {
     uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
                         | (sys_carttype == CT_MBC1RAM)
                         | (sys_carttype == CT_MBC1RAMBATT);
+    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
+                        | (sys_carttype == CT_MBC2BATT);
 
     if          (addr < 0x2000) {
 
-        if (sys_ismbc1) {
+        if (sys_ismbc1 || (sys_ismbc2 && (~addr & 0x0100))) {
             // 0x0000 - 0x1FFF - RAM Enable
-            // xAh = enable, else disable
-            sys_extmem_en = ((data & 0x0A) == 0x0A);
-
+            sys_extmem_en = ((data & 0x0F) == 0x0A);   // xAh = enable, else disable
 #ifdef SYS_VERBOSE
             printf("BANKING: MBC1 RAM Enable: %02x\n", sys_extmem_en);
 #endif
-
         }
 
     } else if   (addr < 0x4000) {
 
-        if (sys_ismbc1) {
+        if (sys_ismbc1 || sys_ismbc2) {
 
             // 0x2000 - 0x3FFF ROM Bank Number
-            // Selects lower 5 bits of the ROM bank number. Bank 0 = Bank 1
 
-            if (data == 0x00) data = 0x01;
+            if (sys_ismbc1) {
+                // Selects lower 5 bits of the ROM bank number.
+                if ((data & 0x1F) == 0) data++;     // 0x00 = 0x01, 0x20 = 0x21, ...)
+                sys_rombank = (sys_rombank & (~0x1F)) | (data & 0x1F);
+            } else if (sys_ismbc2) {
+                sys_rombank = data;
+            }
 
-            uint16_t newaddr;
-
-            sys_rombank = (sys_rombank & (~0x1F)) | (data & 0x1F);
-            newaddr = sys_rombank << 14;
+            uint32_t newaddr = sys_rombank << 14;
 
 #ifdef SYS_VERBOSE
-            printf("BANKING: New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
+            printf("BANKING: New MBC ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
 #endif
             rom2 = &romfile[newaddr];   // Set new bank window
 
@@ -322,7 +329,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             // 0x4000 - 0x5FFF RAM Bank Number *or* Upper bits of ROM bank
             // If we have ROM Banking mode, this selects upper two bits of ROM bank.
 
-            uint16_t newaddr;
+            uint32_t newaddr;
 
             if (sys_mbc1_s == MBC1_2048_8) {
                 // 2048 KiB / 8 KiB Mode (ROM Banking), set upper bits of ROM bank
@@ -367,8 +374,8 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         // VRAM write 8000 - 9FFF
         vram[addr - 0x8000] = data;
     } else if   (addr < 0xC000) {
-        // RAM 2
-        if (sys_extmem_en)
+        // RAM 2, MBC2 only goes up to 0xA1FF
+        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
             ram2[addr-0xA000] = data;
     } else if   (addr < 0xE000) {
         ram1[addr-0xC000] = data;
@@ -394,14 +401,6 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         }
 
         /*
-         *      JOYPAD
-         */
-
-/*        if (addr == MEM_JOYPAD) {
-            sys_joypad_write(data);
-        }
-*/
-        /*
          *      HANDLE TIMER STUFF
          */
 
@@ -417,15 +416,10 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 #ifdef SYS_VERBOSE
             printf("TAC write: %02x\n", data);
 #endif
+
             // If timer config reg has been written to, set config accordingly
-            data &= 0x03;
-            sys_timer_interval = sys_timer_interval_list[data];
-/*            switch (data & 0x03) {
-            case TIMER_4096:    sys_timer_interval = sys_timer_interval_list[data]; break;
-            case TIMER_262144:  sys_timer_interval = 16;   break;
-            case TIMER_65536:   sys_timer_interval = 64;   break;
-            case TIMER_16384:   sys_timer_interval = 256;  break;
-            }*/
+
+            sys_timer_interval = sys_timer_interval_list[data & 0x03];
             sys_timer_cycles = sys_timer_interval;
             data = 0xF8 | (data & 0x07);
         }
