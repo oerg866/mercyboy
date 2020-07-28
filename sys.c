@@ -57,6 +57,7 @@ void sys_init() {
 void sys_dma_cycles(int cycles) {
 
     // Process dma cycles, one byte per cycle
+
     if (sys_dma_busy) {
 
 #ifdef SYS_VERBOSE
@@ -82,8 +83,9 @@ void sys_cycles(int cycles) {
 
     // Handle DIV counter which is always active
 
-    sys_div_cycles -= cycles;
+    cycles = cycles >> 2;   // 4 CPU cycles = 1 Machine Cycle
 
+    sys_div_cycles -= cycles;
     if (sys_div_cycles <= 0) {
         // Increment Divider register
         SYS_DIV++;
@@ -111,6 +113,9 @@ void sys_cycles(int cycles) {
                 // Timer overflowed
                 SYS_TIMER = SYS_TIMER_MOD;
                 sys_interrupt_req(INT_TIMER);
+#ifdef SYS_VERBOSE
+                printf("SYS: Requesting Timer Interrupt\n");
+#endif
             }
 
         }
