@@ -524,8 +524,7 @@ uint16_t process_interrupts() {
                 // also clear bit in IF register
 
                 cpu_ie = 0;
-                if (!cpu_halted)
-                    sys_interrupt_clear(1 << i);
+                sys_interrupt_clear(1 << i);
 
 
                 // step 2: push pc onto stack
