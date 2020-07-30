@@ -96,7 +96,7 @@ void audio_enable_channel(int i);
 void audio_update_waveform_data();
 void audio_update_volume(int i);
 
-void audio_process_chunk(SAMPLE *stream, int len);
+extern void audio_process_chunk(SAMPLE *stream, int len);
 
 // Init & deinit functions
 

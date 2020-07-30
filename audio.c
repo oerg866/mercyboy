@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <limits.h>
 
-#include "mem.c"
-#include "sys.c"
+#include "mem.h"
+#include "sys.h"
 
 // Pointer to I/O audio region in memory. This is so that the code is easier to read when accessing registers all over the place.
 struct audio_channel* audio_chans = (struct audio_channel*) &AUDIO_NR10;
