@@ -457,12 +457,12 @@ inline void square(unsigned int i, SAMPLE *buffer) {
             audio_sample[i] = (audio_sample[i] >> 1) | (audio_sample[i] << 7);
         }
 
-        if (AUDIO_NR51 & (1 << 3)) {
+        if (AUDIO_NR51 & (1 << i)) {
             if (audio_sample[i] & 0x01) { buffer[0] += audio_output_l[i]; }
                                    else { buffer[0] -= audio_output_l[i]; }
         }
 
-        if (AUDIO_NR51 & (1 << (3+4))) {
+        if (AUDIO_NR51 & (1 << (i+4))) {
             if (audio_sample[i] & 0x01) { buffer[1] += audio_output_r[i]; }
                                    else { buffer[1] -= audio_output_r[i]; }
         }
@@ -481,9 +481,11 @@ inline void waveform(SAMPLE *buffer) {
 
         }
 
-        buffer[0] += audio_waveform_output[0];
-        buffer[1] += audio_waveform_output[1];
+        if (AUDIO_NR51 & (1 << 2))
+            buffer[0] += audio_waveform_output[0];
 
+        if (AUDIO_NR51 & (1 << (2+4)))
+            buffer[1] += audio_waveform_output[1];
     }
 
 }
