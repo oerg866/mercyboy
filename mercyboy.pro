@@ -17,6 +17,7 @@ DEFINES += AUDIO_SDL2
 contains(DEFINES, AUDIO_SDL2) {
     LIBS += -lSDL2main
     LIBS += -lSDL2
+    DEFINES += USE_AUDIO_TIMING
 }
 
 SOURCES += \
