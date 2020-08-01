@@ -60,16 +60,16 @@ void cpu_init() {
 
 void run() {
 
-
     while (1) {
-
 
         op = cpu_read8(*pc);
 
 #ifdef CPU_VERBOSE
-            printf("tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
-              ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
+        printf("tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+          ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
+
 #endif
+
         switch(op) {
 
         case 0x78: op_ld_a_r(); break;          // ld a, r
@@ -373,8 +373,6 @@ void run() {
 
         }
 
-        process_interrupts();
-
         if ((op != 0xF3) && (op != 0xFB)) {
             if (cpu_ei_pending) {
                 cpu_ie = 1;
@@ -384,6 +382,10 @@ void run() {
                 cpu_di_pending = 0;
             }
         }
+
+        if (op != 0x76)
+            process_interrupts();   // Don't process interrupts again if we've just returned from a HALT
+
 
     }
 
@@ -414,7 +416,7 @@ void cpu_ext_op() {
     }
 
     // SET
-    if ((op >= 0xC0) && (op <= 0xFF)) {
+    if (op >= 0xC0) {
         if ((op & 0x07) == 0x06) {
             op_set_ind_hl();
         } else {
@@ -513,7 +515,7 @@ uint16_t process_interrupts() {
 
     if (cpu_ie || cpu_halted) {
         for (uint16_t i = 0; i < 5; i++) {
-            if ((ram_ie & SYS_IF) & (1 << i)) {
+            if (cpu_ie && ((ram_ie & SYS_IF) & (1 << i))) {
                 // if an int is enabled and pending, service it
 
 #ifdef SYS_VERBOSE
