@@ -515,7 +515,7 @@ uint16_t process_interrupts() {
 
     if (cpu_ie || cpu_halted) {
         for (uint16_t i = 0; i < 5; i++) {
-            if (cpu_ie && ((ram_ie & SYS_IF) & (1 << i))) {
+            if ((ram_ie & SYS_IF) & (1 << i)) {
                 // if an int is enabled and pending, service it
 
 #ifdef SYS_VERBOSE
@@ -525,6 +525,7 @@ uint16_t process_interrupts() {
                 // step 1: disable interrupt master enable
                 // also clear bit in IF register
 
+                cpu_ei_pending = 0;
                 cpu_ie = 0;
                 sys_interrupt_clear(1 << i);
 
