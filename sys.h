@@ -65,6 +65,9 @@ extern int16_t sys_timer_interval;
 extern int16_t sys_timer_interval_list[];
 extern int16_t sys_timer_cycles;
 
+extern uint8_t sys_ismbc1;
+extern uint8_t sys_ismbc2;
+
 void sys_init();
 
 void sys_dma_cycles(int cycles);

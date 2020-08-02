@@ -151,13 +151,6 @@ uint8_t* mem_addr(uint16_t addr) {
 
 uint8_t cpu_read8_force(uint16_t addr) {
 
-    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
-                        | (sys_carttype == CT_MBC1RAM)
-                        | (sys_carttype == CT_MBC1RAMBATT);
-    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
-                        | (sys_carttype == CT_MBC2BATT);
-
-
     if          (addr < 0x4000) {
 
         return rom1[addr];
@@ -222,47 +215,6 @@ uint8_t cpu_read8(uint16_t addr) {
 
 }
 
-
-
-uint16_t cpu_read16_force(uint16_t addr) {
-
-    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
-                        | (sys_carttype == CT_MBC1RAM)
-                        | (sys_carttype == CT_MBC1RAMBATT);
-    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
-                        | (sys_carttype == CT_MBC2BATT);
-
-
-    if          (addr < 0x4000) {
-        return *(uint16_t*) &rom1[addr];
-    } else if   (addr < 0x8000) {
-        return *(uint16_t*) &rom2[addr-0x4000];
-    } else if   (addr < 0xA000) {
-        // VRAM write 8000 - 9FFF
-        return *(uint16_t*) &vram[addr - 0x8000];
-    } else if   (addr < 0xC000) {
-        // RAM 2
-        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
-            return *(uint16_t*) &ram2[addr-0xA000];
-    } else if   (addr < 0xE000) {
-        return *(uint16_t*) &ram1[addr-0xC000];
-    } else if   (addr < 0xFE00) {
-        return *(uint16_t*) &ram1[addr-0xE000];
-    } else if   (addr < 0xFEA0) {
-        return *(uint16_t*) &oam[addr-0xFE00];
-    } else if   (addr < 0xFF00) {
-        return *(uint16_t*) &ram_uio2[addr-0xFEA0];
-    } else if   (addr < 0xFF80) {
-        return *(uint16_t*) &ram_io[addr - 0xFF00];
-    } else if   (addr < 0xFFFF) {
-        return *(uint16_t*) &ram_int[addr - 0xFF80];
-    } else if   (addr == 0xFFFF) {
-        return ((uint16_t) ram_ie) << 8;
-    }
-
-    return 0;
-}
-
 uint16_t cpu_read16(uint16_t addr) {
 
     // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
@@ -272,8 +224,10 @@ uint16_t cpu_read16(uint16_t addr) {
         return 0;
     }
 
-    return cpu_read16_force(addr);
+    return cpu_read8_force(addr) | (cpu_read8_force(addr+1) << 8);
 }
+
+#define SYS_VERBOSE
 
 void cpu_write8(uint16_t addr, uint8_t data) {
 
@@ -283,12 +237,6 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         printf("!!!! WARNING: Ignored write to %x during DMA!\n", addr);
         return;
     }
-
-    uint8_t sys_ismbc1  = (sys_carttype == CT_MBC1)
-                        | (sys_carttype == CT_MBC1RAM)
-                        | (sys_carttype == CT_MBC1RAMBATT);
-    uint8_t sys_ismbc2  = (sys_carttype == CT_MBC2)
-                        | (sys_carttype == CT_MBC2BATT);
 
     if          (addr < 0x2000) {
 
