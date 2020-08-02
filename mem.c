@@ -97,6 +97,14 @@ int mem_init(uint8_t *file, int fsize) {
     default:                printf("Unknown: %x", sys_carttype);
     }
 
+    // init global variables that indicate MBC presence
+
+    sys_ismbc1  = (sys_carttype == CT_MBC1)
+                | (sys_carttype == CT_MBC1RAM)
+                | (sys_carttype == CT_MBC1RAMBATT);
+    sys_ismbc2  = (sys_carttype == CT_MBC2)
+                | (sys_carttype == CT_MBC2BATT);
+
     printf("Reported ROM Size: ");
 
     // Figure out ROM size
@@ -226,8 +234,6 @@ uint16_t cpu_read16(uint16_t addr) {
 
     return cpu_read8_force(addr) | (cpu_read8_force(addr+1) << 8);
 }
-
-#define SYS_VERBOSE
 
 void cpu_write8(uint16_t addr, uint8_t data) {
 

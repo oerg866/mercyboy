@@ -44,12 +44,6 @@ void sys_init() {
     sys_rombank = 0;
     sys_rambank = 0;
 
-    sys_ismbc1  = (sys_carttype == CT_MBC1)
-                | (sys_carttype == CT_MBC1RAM)
-                | (sys_carttype == CT_MBC1RAMBATT);
-    sys_ismbc2  = (sys_carttype == CT_MBC2)
-                | (sys_carttype == CT_MBC2BATT);
-
     sys_div_cycles = SYS_DIV_INTERVAL;
     sys_timer_cycles = SYS_TIMER_CYCLES_4096HZ;
 
