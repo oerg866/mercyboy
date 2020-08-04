@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "mem.h"
 #include "sys.h"
+#include "trace.h"
 
 inline int op_get_operand8_a(uint8_t byte, int bitshift) {
     // gets an operand, a is possible
@@ -597,16 +598,13 @@ void op_nop() {
 void op_halt() {
     // halt until interrupt
     // TODO: Emulate bugs!!!
-//    printf("halting...\n");
     int ints = 0;
     ipc(1);
     cycles(4);
     cpu_halted = 1;
     while (ints == 0) {
-#ifdef CPU_VERBOSE
-            printf(">> HALT << -- tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x ly: %02x\n",
-              ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, ram_io[0x44]);
-#endif
+        trace(TRACE_INT, ">> HALT << -- tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x ly: %02x\n",
+            ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, ram_io[0x44]);
         ints = process_interrupts();
         cycles(4);
     }
@@ -615,7 +613,6 @@ void op_halt() {
 
 void op_stop() {
     // halt until button pressed
-//    printf("stopping...\n");
     uint8_t buttons_old = sys_buttons_all;
     while (sys_buttons_all == buttons_old) {
         sys_handle_joypads();

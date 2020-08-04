@@ -5,6 +5,7 @@
 
 #include "mem.h"
 #include "sys.h"
+#include "trace.h"
 
 // Pointer to I/O audio region in memory. This is so that the code is easier to read when accessing registers all over the place.
 struct audio_channel* audio_chans = (struct audio_channel*) &AUDIO_NR10;
@@ -66,10 +67,8 @@ uint8_t audio_handle_read(uint16_t addr) {
 
     uint8_t data = ram_io[addr - 0xFF10];
 
-#ifdef AUDIO_VERBOSE
     uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
-    printf("AUDIO: Handle read, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
-#endif
+    trace(TRACE_AUDIO, "Handle read, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
 
     switch(addr) {
 
@@ -98,9 +97,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
     struct audio_channel * chan = &audio_chans[cidx];
 
-#ifdef AUDIO_VERBOSE
-    printf("AUDIO: Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
-#endif
+    trace(TRACE_AUDIO, "Handle write, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
 
     switch(addr) {
 
@@ -130,9 +127,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     case MEM_NR42:
         audio_envelope_cycle[cidx] = (float) (AUDIO_ENVELOPE);
 
-#ifdef AUDIO_VERBOSE
-        printf("AUDIO: CH %d SET envelope cycle %f, amplify mode %01x\n", cidx, audio_envelope_cycle[cidx], data & AUDIO_ENVELOPE_AMPLIFY);
-#endif
+        trace(TRACE_AUDIO, "CH %d SET envelope cycle %f, amplify mode %01x\n", cidx, audio_envelope_cycle[cidx], data & AUDIO_ENVELOPE_AMPLIFY);
 
         break;
 
@@ -158,11 +153,8 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     case MEM_NR43:  // Channel 4 (Noise)
         ram_io[addr-0xFF00] = data;
         audio_set_noise_frequency(data);
-        break;
 
-#ifdef AUDIO_VERBOSE
-            printf("AUDIO: Note on on channel %d:, cycle = %f", cidx, audio_cycle[cidx]);
-#endif
+        trace(TRACE_AUDIO, "Note on on channel %d:, cycle = %f", cidx, audio_cycle[cidx]);
 
         break;
 
@@ -207,9 +199,8 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
             audio_update_volume(cidx);
             chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
 
-#ifdef AUDIO_VERBOSE
-            printf("AUDIO: Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
-#endif
+            trace(TRACE_AUDIO, "Note on on channel %d:, cycle = %f, freq: %04x\n", cidx, audio_cycle[cidx], (((chan->nr4 & 0x07) << 8) | chan->nr3));
+
 
         }
         return;
@@ -239,10 +230,8 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 inline void audio_disable_channel (int i) {
     // Disable a channel (Disable playing flag in emulator + disable in gameboy register)
 
-#ifdef AUDIO_VERBOSE
-    if (i==0)
-    printf("AUDIO: Disabling channel %d\n", i);
-#endif
+    trace(TRACE_AUDIO "Disabling channel %d\n", i);
+
     audio_playing[i] = 0;
     AUDIO_NR52 &= ~(1 << i);
 }
@@ -250,9 +239,7 @@ inline void audio_disable_channel (int i) {
 inline void audio_enable_channel (int i) {
     // Enable a channel (Enable playing flag in emulator + enable in gameboy register)
 
-#ifdef AUDIO_VERBOSE
-    printf("AUDIO: Enabling channel %d\n", i);
-#endif
+    trace(TRACE_AUDIO, "Enabling channel %d\n", i);
 
     audio_playing[i] = 1;
     AUDIO_NR52 |= (1 << i);
@@ -301,9 +288,8 @@ inline void audio_update_volume(int i) {
         audio_update_waveform_data();   // If we're updating volume for the waveform channel we must also update the waveform data
     }
 
-#ifdef AUDIO_VERBOSE
-    printf("AUDIO: CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
-#endif
+    trace(TRACE_AUDIO, "CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
+
 
 }
 

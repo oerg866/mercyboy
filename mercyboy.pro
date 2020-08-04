@@ -4,6 +4,7 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
+DEFINES += DEBUG
 
 win32-g++ {
 DEFINES += AUDIO_SDL2
@@ -30,7 +31,8 @@ SOURCES += \
     sys.c \
     video.c \
     audio.c \
-    audio_sdl2.c
+    audio_sdl2.c \
+    trace.c
 
 HEADERS += \
     cpu.h \
@@ -38,7 +40,8 @@ HEADERS += \
     sys.h \
     video.h \
     audio.h \
-    audio_sdl2.h
+    audio_sdl2.h \
+    trace.h
 
 DISTFILES += \
     LICENSE \

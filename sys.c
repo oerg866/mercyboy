@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "mem.h"
 #include "cpu.h"
+#include "trace.h"
 
 uint8_t sys_carttype;
 uint8_t sys_mbc1_s;
@@ -63,9 +64,8 @@ void sys_dma_cycles(int cycles) {
 
     if (sys_dma_busy) {
 
-#ifdef SYS_VERBOSE
-        printf("SYS: DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
-#endif
+        trace(TRACE_SYS, "DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
+
         for (int i = 0; i < cycles; i++) {
             oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
             if (++sys_dma_counter == SYS_DMA_LENGTH)
@@ -101,9 +101,7 @@ void sys_cycles(int cycles) {
 
         sys_timer_cycles -= cycles;
 
-#ifdef SYS_VERBOSE
-        printf("SYS: sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
-#endif
+        trace(TRACE_SYS, "sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
 
         if (sys_timer_cycles <= 0) {
             // Increment timer when the amount of cycles per "tick" have been reached
@@ -116,9 +114,8 @@ void sys_cycles(int cycles) {
                 // Timer overflowed
                 SYS_TIMER = SYS_TIMER_MOD;
                 sys_interrupt_req(INT_TIMER);
-#ifdef SYS_VERBOSE
-                printf("SYS: Requesting Timer Interrupt\n");
-#endif
+
+                trace(TRACE_SYS, "Requesting Timer Interrupt\n");
             }
 
         }
@@ -142,9 +139,7 @@ uint8_t sys_read_joypad() {
         result &= (sys_buttons_all & 0x0F);
     }
 
-#ifdef SYS_VERBOSE
-    printf("SYS: Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, SYS_IF & INT_JOYPAD, ram_ie, sys_buttons_all);
-#endif
+    trace(TRACE_SYS, "Joypad status %02x, joy_int %02x, mem_ie %02x, buttons %02x\n", result, SYS_IF & INT_JOYPAD, ram_ie, sys_buttons_all);
 
     return result;
 }
@@ -192,13 +187,12 @@ void sys_handle_joypads() {
 
 void sys_interrupt_req(uint8_t index) {
     // Requests an interrupt
-#ifdef SYS_VERBOSE
-    printf("SYS: Requesting interrupt: %02x\n",index);
-#endif
+    trace(TRACE_INT,"Requesting interrupt: %02x\n",index);
     SYS_IF |= index;
 }
 
 void sys_interrupt_clear(uint8_t index) {
     // Clears an interrupt
+    trace(TRACE_INT,"Requesting interrupt: %02x\n",index);
     SYS_IF &= ~index;
 }

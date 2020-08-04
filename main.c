@@ -5,6 +5,7 @@
 #include "mem.h"
 #include "video.h"
 #include "audio.h"
+#include "trace.h"
 
 #include "string.h"
 
@@ -17,8 +18,17 @@
 int main(int argc, char* argv[])
 //int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
-/*    char**argv = lpCmdLine;
-    int argc = nCmdShow;*/
+
+    trace_init(0, 0, NULL);
+
+#ifdef DEBUG
+    FILE *dbg = NULL;
+    /*  Uncomment for trace file
+     *  dbg = fopen("dbg.txt", "rw");
+     */
+    trace_init(TRACE_ALL, 1, dbg);
+#endif
+
 
     printf("MercyBoy TEST VERSION\n");
 

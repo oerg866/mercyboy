@@ -5,6 +5,7 @@
 #include "mem.h"
 #include "sys.h"
 #include "audio.h"
+#include "trace.h"
 
 /*
  * Mode 0:
@@ -159,9 +160,9 @@ void video_cycles(int cycles) {
     // if video line is higher than visible display, assert vblank
 
     if (video_frame_cycles <= 0) {
-#ifdef VIDEO_VERBOSE
-        printf("SCX: %02x, SCY: %02x\n", VID_SCX, VID_SCY);
-#endif
+
+        trace(TRACE_VIDEO, "SCX: %02x, SCY: %02x\n", VID_SCX, VID_SCY);
+
         // We're done, reset & draw screen
         VID_LY = 0x00;
         //sys_handle_joypads();
@@ -381,10 +382,7 @@ void video_draw_sprites() {
 }
 void video_draw_line() {
 
-#ifdef VIDEO_VERBOSE
-
-    printf("========== Drawing LINE: %d\n", VID_LY);
-#endif
+    trace(TRACE_VIDEO, "Drawing LINE: %d\n", VID_LY);
 
     // clear the linebuffer before drawing anything
 
@@ -423,9 +421,7 @@ void video_draw_line() {
 
         uint16_t window_start = VID_WX - 7;
 
-#ifdef VIDEO_VERBOSE
-        printf("VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, VID_WY);
-#endif
+        trace(TRACE_VIDEO, "VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, VID_WY);
         video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
 
     }
@@ -449,9 +445,7 @@ void video_update_framebuffer() {
     SDL_Delay(16);
 #endif
 
-#ifdef VIDEO_VERBOSE
-    printf("========== Drawing framebuffer to window ===============\n");
-#endif
+    trace(TRACE_VIDEO,"Drawing framebuffer to window\n");
 
     video_surface = SDL_GetWindowSurface(video_window);
     memcpy(video_surface->pixels, framebuffer32, 160 * 144 * sizeof(uint32_t));

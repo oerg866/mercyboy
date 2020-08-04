@@ -7,6 +7,7 @@
 #include "sys.h"
 #include "audio.h"
 #include "video.h"
+#include "trace.h"
 
 uint8_t *romfile;
 uint8_t *addonram;
@@ -193,14 +194,6 @@ uint8_t cpu_read8_force(uint16_t addr) {
         return ram_io[addr - 0xFF00];
 
     } else if   (addr < 0xFFFF) {
-#ifdef SYS_VERBOSE
-        if (addr == 0xFF81) {
-            printf("drmario joy data: %02x\n", ram_int[0x01]);
-            if (ram_int[0x01] != 0x00)  {
-                printf("Joy_trigger\n");
-            }
-        }
-#endif
         return ram_int[addr - 0xFF80];
     } else if   (addr == 0xFFFF) {
         return ram_ie;
@@ -215,7 +208,7 @@ uint8_t cpu_read8(uint16_t addr) {
     // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
 
     if ((sys_dma_busy) && (addr < 0xFE00)) {
-        printf("!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
         return 0;
     }
 
@@ -228,7 +221,7 @@ uint16_t cpu_read16(uint16_t addr) {
     // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
 
     if ((sys_dma_busy) && (addr < 0xFE00)) {
-        printf("!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
         return 0;
     }
 
@@ -249,9 +242,8 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         if (sys_ismbc1 || (sys_ismbc2 && (~addr & 0x0100))) {
             // 0x0000 - 0x1FFF - RAM Enable
             sys_extmem_en = ((data & 0x0F) == 0x0A);   // xAh = enable, else disable
-#ifdef SYS_VERBOSE
-            printf("BANKING: MBC1 RAM Enable: %02x\n", sys_extmem_en);
-#endif
+
+            trace(TRACE_MBC,"MBC1 RAM Enable: %02x\n", sys_extmem_en);
         }
 
     } else if   (addr < 0x4000) {
@@ -270,9 +262,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
             uint32_t newaddr = sys_rombank << 14;
 
-#ifdef SYS_VERBOSE
-            printf("BANKING: New MBC ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
-#endif
+            trace(TRACE_MBC,"New MBC ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
             rom2 = &romfile[newaddr];   // Set new bank window
 
         }
@@ -292,9 +282,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
                 sys_rombank = (sys_rombank & (~0x60)) | (data << 5);
                 newaddr = sys_rombank << 14;
 
-#ifdef SYS_VERBOSE
-                printf("BANKING: New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
-#endif
+                trace(TRACE_MBC,"New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
 
                 rom2 = &romfile[newaddr];   // Set new bank window
 
@@ -302,9 +290,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
                 // 512 KiB / 32 KiB Mode (RAM Banking), set RAM bank
                 sys_rambank = data & 0x03;
 
-#ifdef SYS_VERBOSE
-            printf("BANKING: New MBC1 RAM Address set: %04x\n", sys_rambank << 13);
-#endif
+                trace(TRACE_MBC,"New MBC1 RAM Address set: %04x\n", sys_rambank << 13);
 
                 ram2 = &ram_ext[sys_rambank << 13];
             }
@@ -319,9 +305,8 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
             sys_mbc1_s = data & 0x01;
 
-#ifdef SYS_VERBOSE
-            printf("BANKING: MBC1 ROM/RAM Mode Set: %02x\n", sys_mbc1_s);
-#endif
+            trace(TRACE_MBC, "MBC1 ROM/RAM Mode Set: %02x\n", sys_mbc1_s);
+
         }
 
     } else if   (addr < 0xA000) {
@@ -367,9 +352,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
         if (addr == MEM_TAC) {
 
-#ifdef SYS_VERBOSE
-            printf("TAC write: %02x\n", data);
-#endif
+            trace(TRACE_SYS, "TAC write: %02x\n", data);
 
             // If timer config reg has been written to, set config accordingly
 
@@ -379,10 +362,8 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         }
 
 
-#ifdef SYS_VERBOSE
         if (addr == MEM_TMA)
-            printf("TMA write: %02x\n", data);
-#endif
+            trace(TRACE_SYS, "TMA write: %02x\n", data);
 
         if (addr == MEM_LINE) {
             return;
@@ -404,16 +385,11 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         if (addr == MEM_OBP1)
             video_update_palette(PAL_OFFSET_OBP1, data);
 
+        if (addr == MEM_SCY)
+            trace(TRACE_SYS, "SCY Write: %02x\n", data);
 
-#ifdef VIDEO_VERBOSE
-        if (addr == MEM_SCY) {
-            printf("SCY Write: %02x\n", data);
-        }
-
-        if (addr == MEM_SCX) {
-            printf("SCX Write: %02x\n", data);
-        }
-#endif
+        if (addr == MEM_SCX)
+            trace(TRACE_SYS, "SCX Write: %02x\n", data);
 
         ram_io[addr - 0xFF00] = data;
 

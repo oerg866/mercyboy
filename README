@@ -13,3 +13,41 @@ It's a QT Creator / QMake project for now, because I like fancy IDEs and am
 lazy.
 
 Have fun!
+
+
+*******************************************************************************
+Known problems:
+
+SOUND:
+
+- Has the tendency to have hanging notes
+- Some notes are not played with the correct volume (World Cup, Mario Land)
+
+GRAPHICS:
+
+- Transparency issues with sprites
+- Paletting is not quite right yet
+
+Games that work (mostly):
+
+- Bubble Bobble
+- Dig Dug
+- Dr. Mario
+- F1 Race
+- Nintendo World Cup
+- Super Mario Land
+- Tetris
+- The Smurfs
+
+Games with problems:
+
+- Gauntlet II           Squealing noise
+- Hyper Lode Runner     Raster effect when the level starts has glitched
+                        graphics
+- Kirby's Dream Land    Crashes the game and emulator randomly
+- Ms. Pac Man           Score HUD is not drawn with proper width
+- Pac Man               No Sound
+- Probotector 2         Game crashes and resets at the start of the first
+                        stage
+- Super Mario Land 2    Game crashes as soon as you press start on the
+                        title screen

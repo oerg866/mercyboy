@@ -5,6 +5,7 @@
 #include "mem.h"
 #include "video.h"
 #include "sys.h"
+#include "trace.h"
 
 uint8_t     regs8  [0x0C];
 uint16_t   *regs16 = (uint16_t*) regs8;
@@ -64,11 +65,8 @@ void run() {
 
         op = cpu_read8(*pc);
 
-#ifdef CPU_VERBOSE
-        printf("tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+        trace(TRACE_CPU, "tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
           ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, bs(regs16[REG_AF]), bs(*bc), bs(*de), bs(*hl), bs(*sp), op, ram_io[0x44]);
-
-#endif
 
         switch(op) {
 
@@ -369,7 +367,13 @@ void run() {
 
         case 0xCB: cpu_ext_op(); break;         // ext op 0xCB
 
-        default: printf("Unhandled opcode: %02x !!\n", op); cycles(4); break;
+        default:
+            printf("!!! ERROR: Unhandled opcode: %02x !!\n", op);
+
+            while (1) {
+                cycles(4);
+                break;
+            }
 
         }
 
@@ -518,9 +522,7 @@ uint16_t process_interrupts() {
             if ((ram_ie & SYS_IF) & (1 << i)) {
                 // if an int is enabled and pending, service it
 
-#ifdef SYS_VERBOSE
-                printf("Servicing interrupt index %i\n", i);
-#endif
+                trace(TRACE_INT, "Servicing interrupt index %i\n", i);
 
                 // step 1: disable interrupt master enable
                 // also clear bit in IF register
