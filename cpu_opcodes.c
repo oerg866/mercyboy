@@ -602,12 +602,14 @@ void op_halt() {
     ipc(1);
     cycles(4);
     cpu_halted = 1;
+    trace(TRACE_INT, ">> HALT START << -- tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x ly: %02x\n",
+        ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, ram_io[0x44]);
     while (ints == 0) {
-        trace(TRACE_INT, ">> HALT << -- tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x ly: %02x\n",
-            ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, ram_io[0x44]);
         ints = process_interrupts();
         cycles(4);
     }
+    trace(TRACE_INT, ">> HALT END << -- tac: %02x if: %02x ie: %02x, in: %02x, pc: %04x ly: %02x\n",
+        ram_io[0x07], SYS_IF, cpu_ie, ram_ie, *pc, ram_io[0x44]);
     cpu_halted = 0;
 }
 
