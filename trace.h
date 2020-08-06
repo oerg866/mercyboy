@@ -5,7 +5,7 @@
 // Definitions for tracing levels
 
 #define TRACE_CPU   (1<<0)
-#define TRACE_SOUND (1<<1)
+#define TRACE_AUDIO (1<<1)
 #define TRACE_VIDEO (1<<2)
 #define TRACE_SYS   (1<<3)
 #define TRACE_INT   (1<<4)

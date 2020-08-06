@@ -230,7 +230,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 inline void audio_disable_channel (int i) {
     // Disable a channel (Disable playing flag in emulator + disable in gameboy register)
 
-    trace(TRACE_AUDIO "Disabling channel %d\n", i);
+    trace(TRACE_AUDIO, "Disabling channel %d\n", i);
 
     audio_playing[i] = 0;
     AUDIO_NR52 &= ~(1 << i);
