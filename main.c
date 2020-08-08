@@ -13,7 +13,6 @@
 #include <windows.h>
 #endif
 
-#include <SDL2/SDL.h>
 
 int main(int argc, char* argv[])
 //int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
@@ -26,7 +25,7 @@ int main(int argc, char* argv[])
     /*  Uncomment for trace file
      *  dbg = fopen("dbg.txt", "rw");
      */
-    trace_init(TRACE_ALL, 1, dbg);
+    trace_init(0, 1, dbg);
 #endif
 
 
@@ -45,50 +44,18 @@ int main(int argc, char* argv[])
 
     fclose(infile);
 
+    int width = 160;
+    int height = 144;
 
     printf ("File size: %u bytes.\n", fsize);
     cpu_init();
     sys_init();
     int result = mem_init(romfile, fsize);
 
-
-    // Init SDL
-
-    if (SDL_Init(SDL_INIT_EVERYTHING) < 0)  {
-        printf("Error intiializing SDL\n");
-        return -1;
-    }
-
-    SDL_Window *window = SDL_CreateWindow("MercyBoy",
-                                          SDL_WINDOWPOS_CENTERED,
-                                          SDL_WINDOWPOS_CENTERED,
-                                          160,
-                                          144,
-                                          0);
-
-    if (!window) {
-        printf("Error opening window\n");
-        return -1;
-    }
-
-    SDL_Surface *window_surface = SDL_GetWindowSurface(window);
-
-    printf("Window size = %i * %i\n", window_surface->h, window_surface->pitch);
-
-
-
-    if (!window_surface) {
-        printf("Failed to get surface from the window\n");
-        return -1;
-    }
-
     audio_init();
-    video_init(window_surface, window);
+    video_backend_init(width, height);
+    video_init();
 
-
-    SDL_UpdateWindowSurface(window);
-
-    //SDL_Delay(5000);
     // Run CPU
 
     run();

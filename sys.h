@@ -55,8 +55,6 @@ extern uint8_t sys_rambank;
 extern uint8_t sys_extmem_en;
 extern uint8_t sys_mbc1_s;
 
-extern uint8_t sys_buttons_all;
-
 extern uint8_t sys_dma_busy;
 extern uint16_t sys_dma_source;
 extern uint8_t sys_dma_counter;
@@ -68,11 +66,14 @@ extern int16_t sys_timer_cycles;
 extern uint8_t sys_ismbc1;
 extern uint8_t sys_ismbc2;
 
+extern uint8_t sys_running;
+
 void sys_init();
 
 void sys_dma_cycles(int cycles);
 void sys_cycles(int cycles);
-void sys_handle_joypads();
+void sys_handle_system();
+void sys_handle_joypad();
 
 void sys_interrupt_req(uint8_t index);
 void sys_interrupt_clear(uint8_t index);

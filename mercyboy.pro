@@ -6,18 +6,25 @@ CONFIG -= qt
 
 DEFINES += DEBUG
 
+DEFINES += INPUT_SDL2
+
 win32-g++ {
 DEFINES += AUDIO_SDL2
+DEFINES += VIDEO_SDL2
 LIBS += -lmingw32
 }
 
 linux-g++ {
 DEFINES += AUDIO_SDL2
+DEFINES += VIDEO_SDL2
+}
+
+contains(DEFINES, AUDIO_SDL2) : contains(DEFINES, VIDEO_SDL2) {
+    LIBS += -lSDL2main
+    LIBS += -lSDL2
 }
 
 contains(DEFINES, AUDIO_SDL2) {
-    LIBS += -lSDL2main
-    LIBS += -lSDL2
     DEFINES += USE_AUDIO_TIMING
 }
 
@@ -32,7 +39,10 @@ SOURCES += \
     video.c \
     audio.c \
     audio_sdl2.c \
-    trace.c
+    trace.c \
+    video_sdl2.c \
+    input_sdl2.c \
+    input_win32.c
 
 HEADERS += \
     cpu.h \
@@ -41,7 +51,8 @@ HEADERS += \
     video.h \
     audio.h \
     audio_sdl2.h \
-    trace.h
+    trace.h \
+    input.h
 
 DISTFILES += \
     LICENSE \

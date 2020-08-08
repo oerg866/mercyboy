@@ -61,13 +61,23 @@
 #define PAL_OFFSET_OBP0     4
 #define PAL_OFFSET_OBP1     8
 
-void video_init(SDL_Surface *init_surface, SDL_Window *init_window);
+extern const uint32_t bw_palette[4];
+extern uint8_t pal_int[4*3];
+
+void video_init();
 void video_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_cycles(int cycles);
 uint8_t video_flip_tile_byte(uint8_t src);
 void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr);
 void video_draw_line();
 void video_update_framebuffer();
+
+// Backend functions
+
+int video_backend_init(int width, int height);
+void video_backend_update_palette(uint8_t pal_offset, uint8_t reg);
+void video_backend_draw_line(int line, uint8_t *linebuf);
+void video_backend_update_framebuffer();
 
 struct spritedata {
     uint8_t y;

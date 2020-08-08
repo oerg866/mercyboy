@@ -7,6 +7,7 @@
 #include "mem.h"
 #include "cpu.h"
 #include "trace.h"
+#include "input.h"
 
 uint8_t sys_carttype;
 uint8_t sys_mbc1_s;
@@ -23,11 +24,11 @@ int16_t sys_div_cycles;
 int16_t sys_timer_cycles;
 int16_t sys_timer_interval;
 
-uint8_t sys_buttons_all;
-
 uint16_t sys_dma_source;
 uint8_t sys_dma_counter;
 uint8_t sys_dma_busy;
+
+uint8_t sys_running = 1;
 
 int16_t sys_timer_interval_list[4] = {
     SYS_TIMER_CYCLES_4096HZ,
@@ -144,34 +145,22 @@ uint8_t sys_read_joypad() {
     return result;
 }
 
-void sys_handle_joypads() {
+void sys_handle_system() {
+#ifdef VIDEO_SDL2
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            sys_running = 0;
+        }
+    }
+#endif
+}
 
-    const uint8_t *state = SDL_GetKeyboardState(NULL);
+void sys_handle_joypad() {
 
-    // 0xFF00
-    /*
-    Bit 7 - Not used
-    Bit 6 - Not used
-    Bit 5 - P15 Select Button Keys      (0=Select)
-    Bit 4 - P14 Select Direction Keys   (0=Select)
-    Bit 3 - P13 Input Down  or Start    (0=Pressed) (Read Only)
-    Bit 2 - P12 Input Up    or Select   (0=Pressed) (Read Only)
-    Bit 1 - P11 Input Left  or Button B (0=Pressed) (Read Only)
-    Bit 0 - P10 Input Right or Button A (0=Pressed) (Read Only)
-    */
+    // Call backend function for this
 
-    uint8_t sys_buttons_old = sys_buttons_all; // old joypad state for later
-
-    sys_buttons_all = 0
-            | ((~state[SDL_SCANCODE_DOWN] & 0x01)    << 7)
-            | ((~state[SDL_SCANCODE_UP] & 0x01)      << 6)
-            | ((~state[SDL_SCANCODE_LEFT] & 0x01)    << 5)
-            | ((~state[SDL_SCANCODE_RIGHT] & 0x01)   << 4)
-            | ((~state[SDL_SCANCODE_RETURN] & 0x01)  << 3)
-            | ((~state[SDL_SCANCODE_SPACE] & 0x01)   << 2)
-            | ((~state[SDL_SCANCODE_S] & 0x01)       << 1)
-            | ((~state[SDL_SCANCODE_A] & 0x01)       << 0)
-            ;
+    backend_handle_joypad();
 
     // Interrupt on high-low transitions
 
@@ -182,7 +171,6 @@ void sys_handle_joypads() {
             break;
         }
     }
-
 }
 
 void sys_interrupt_req(uint8_t index) {

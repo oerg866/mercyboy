@@ -4,6 +4,7 @@
 #include "mem.h"
 #include "sys.h"
 #include "trace.h"
+#include "input.h"
 
 inline int op_get_operand8_a(uint8_t byte, int bitshift) {
     // gets an operand, a is possible
@@ -617,7 +618,7 @@ void op_stop() {
     // halt until button pressed
     uint8_t buttons_old = sys_buttons_all;
     while (sys_buttons_all == buttons_old) {
-        sys_handle_joypads();
+        backend_handle_joypad();
         cycles(4);
     }
     ipc(2); cycles(4);

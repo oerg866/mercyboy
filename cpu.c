@@ -61,7 +61,7 @@ void cpu_init() {
 
 void run() {
 
-    while (1) {
+    while (sys_running) {
 
         op = cpu_read8(*pc);
 
@@ -369,12 +369,7 @@ void run() {
 
         default:
             printf("!!! ERROR: Unhandled opcode: %02x !!\n", op);
-
-            while (1) {
-                cycles(4);
-                break;
-            }
-
+            cycles(4);
         }
 
         if ((op != 0xF3) && (op != 0xFB)) {

@@ -42,17 +42,11 @@ uint32_t linebuf_final[160];
 uint8_t linebuf[160];
 
 const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
-uint32_t pal_rgb[4*3];
 uint8_t pal_int[4*3] = {0,1,2,3, 0,1,2,3, 0,1,2,3};
 
-SDL_Surface * video_surface;
-SDL_Window * video_window;
-
-void video_init(SDL_Surface *init_surface, SDL_Window *init_window) {
+void video_init() {
     video_line_cycles = cycles_per_line;
     video_frame_cycles = cycles_per_frame;
-    video_surface = init_surface;
-    video_window = init_window;
     VID_LY = 0x00;
 }
 
@@ -64,10 +58,8 @@ void video_update_palette(uint8_t pal_offset, uint8_t reg) {
         | (reg & 0x30) << (16 - 4)
         | (reg & 0xC0) << (24 - 6);
 
-    pal_rgb[0+pal_offset] = bw_palette[pal_int[0+pal_offset]];
-    pal_rgb[1+pal_offset] = bw_palette[pal_int[1+pal_offset]];
-    pal_rgb[2+pal_offset] = bw_palette[pal_int[2+pal_offset]];
-    pal_rgb[3+pal_offset] = bw_palette[pal_int[3+pal_offset]];
+    // Allow video backend to update palette in its own format
+    video_backend_update_palette(pal_offset, reg);
 }
 
 void video_cycles(int cycles) {
@@ -426,34 +418,20 @@ void video_draw_line() {
 
     }
 
-    // convert line buffer to actual line
+    // convert line buffer to actual line inside the backend
 
-    for (int i = 0; i < 160; i++) {
-        linebuf_final[i] = pal_rgb[linebuf[i]];
-    }
-
-    memcpy(&framebuffer32[160*VID_LY], linebuf_final , 160*sizeof(uint32_t));
+    video_backend_draw_line(VID_LY, linebuf);
 
 }
 
 void video_update_framebuffer() {
 
-#ifdef USE_AUDIO_TIMING
-    while (audio_timer < 0.016);
-    audio_timer = audio_timer - 0.016;
-#else
-    SDL_Delay(16);
-#endif
-
     trace(TRACE_VIDEO,"Drawing framebuffer to window\n");
 
-    video_surface = SDL_GetWindowSurface(video_window);
-    memcpy(video_surface->pixels, framebuffer32, 160 * 144 * sizeof(uint32_t));
+    video_backend_update_framebuffer();
 
-    SDL_UpdateWindowSurface(video_window);
-
-    SDL_PumpEvents();
-    sys_handle_joypads();
+    sys_handle_system();
+    sys_handle_joypad();
 
 
 }
