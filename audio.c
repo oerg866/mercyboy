@@ -24,7 +24,7 @@ static float audio_sweep_frequency = 0;
 // Predefined array of samples for each square wave duty cycle type.
 const  uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
 
-float  audio_timer = 0.0;                           // Constant audio timer. Globally available variable (so that video can be timed with it for example.
+volatile float audio_timer = 0.0;                   // Constant audio timer. Globally available variable (so that video can be timed with it for example.
 
 static float audio_256hz_cycle;                     // Cycle length for 256hz with respect to current sample rate
 static float audio_64hz_cycle;                      // Cycle length for 64hz with respect to current sample rate

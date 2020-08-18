@@ -74,7 +74,7 @@ struct audio_channel {
 
 extern uint32_t audio_sample_rate;
 extern uint32_t audio_amount_channels;
-extern float audio_timer;
+extern volatile float audio_timer;
 
 // I/O RW functions
 
