@@ -13,11 +13,13 @@ struct audio_channel* audio_chans = (struct audio_channel*) &AUDIO_NR10;
 // Pointer to arbitrary waveform data for waveform channel.
 static uint8_t * audio_wavedata = &ram_io[0x30];
 
-// Predfined sweep lengths. Not implemented yet so it is unused.
-static const float audio_sweep_times[8] = {0.0078, 0.0156, 0.0234, 0.00313, 0.0391, 0.0469, 0.0547};
-
-// Sweep cycle counter. Not implemented yet so it is unused.
-static float audio_sweep_count[4] = {0.0, 0.0, 0.0, 0.0};
+// Sweep timer variables.
+static float audio_sweep_cycle = 0;
+static uint8_t audio_sweep_shift = 0;
+static float audio_sweep_counter = 0;
+static uint8_t audio_sweep_enabled = 0;
+static float audio_sweep_old = 0;
+static float audio_sweep_frequency = 0;
 
 // Predefined array of samples for each square wave duty cycle type.
 const  uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
@@ -101,6 +103,14 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
     switch(addr) {
 
+    // SWEEP register
+
+    case MEM_NR10:
+        audio_sweep_enabled = ((data >> 4) & 0x07);
+        audio_sweep_cycle = ((float) audio_sample_rate * (float) ((data >> 4) & 0x07)) / 128.0;
+        audio_sweep_shift = data & 0x07;
+        break;
+
     // DUTY CYCLES
 
     case MEM_NR11:
@@ -168,11 +178,13 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
         ram_io[addr-0xFF00] = data;
 
-        // Set frequency except for noise
+        if (cidx == 0)                  // Channel 1 can sweep, we need to save the frequency
+            audio_sweep_frequency = (float) (((chan->nr4 & 0x07) << 8) | chan->nr3);
+
         if (cidx <= 1)
-            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 8.0;
+            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 8.0;
         else if (cidx == 2)
-            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / ((2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3))))) / 32.0;
+            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 32.0;
 
         if (chan->nr4 & AUDIO_TRIGGER_BIT) {
             audio_counter[cidx] = 0.0; // NOTE ON counter reset
@@ -324,6 +336,28 @@ inline void audio_update_waveform_data() {
  *                                   TIMER FUNCTIONS                                *
  ************************************************************************************/
 
+void audio_sweep_timer() {
+    audio_sweep_counter += 1.0;
+    if (audio_sweep_counter >= audio_sweep_cycle) {
+        audio_sweep_counter -= audio_sweep_cycle;
+
+        if (audio_sweep_enabled && audio_playing[0] && (audio_sweep_shift != 0)) {
+            if (AUDIO_NR10 & AUDIO_SWEEP_DIRECTION) {
+                audio_sweep_frequency = audio_sweep_frequency - audio_sweep_frequency / pow(2, audio_sweep_shift);
+            } else {
+                audio_sweep_frequency = audio_sweep_frequency + audio_sweep_frequency / pow(2, audio_sweep_shift);
+            }
+
+            if (audio_sweep_frequency > 2047.0) {   // If frequency is > 2047 then the channel gets disabled, otherwise write new cycle
+                audio_disable_channel(0);
+            } else {
+                audio_cycle[0] = ((float) audio_sample_rate / (audio_divider[0] / (2048.0 - audio_sweep_frequency))) / 8.0;
+            }
+        }
+
+    }
+}
+
 void audio_envelope_timer() {
     audio_64hz_timer += 1.0;
 
@@ -422,6 +456,7 @@ void audio_process_chunk(SAMPLE *stream, int len) {
         // Process length and envelope timers.
         audio_length_timer();
         audio_envelope_timer();
+        audio_sweep_timer();
 
         stream[i+0] = 0;
         stream[i+1] = 0;

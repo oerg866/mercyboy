@@ -64,6 +64,7 @@
 #define AUDIO_ENV_SWEEP_N (0x07)
 #define AUDIO_NOISE_MODE (1<<3)
 #define AUDIO_TIMED (1<<6)
+#define AUDIO_SWEEP_DIRECTION (1<<3)
 
 #define MASTER_CLOCK 4194304
 
