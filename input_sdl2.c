@@ -9,8 +9,8 @@ uint8_t sys_buttons_old = 0;
 // Key presets
 
 int32_t keys[8] = {
-    SDL_SCANCODE_A,       // A key, for some reason letters don't have a define for it
-    SDL_SCANCODE_S,       // S
+    SDL_SCANCODE_A,
+    SDL_SCANCODE_S,
     SDL_SCANCODE_SPACE,
     SDL_SCANCODE_RETURN,
     SDL_SCANCODE_RIGHT,
