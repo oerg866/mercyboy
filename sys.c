@@ -1,6 +1,5 @@
 #include "sys.h"
 
-#include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -8,6 +7,10 @@
 #include "cpu.h"
 #include "trace.h"
 #include "input.h"
+
+#ifdef VIDEO_SDL2
+#include <SDL2/SDL.h>
+#endif
 
 uint8_t sys_carttype;
 uint8_t sys_mbc1_s;
