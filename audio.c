@@ -1,6 +1,7 @@
 #include "audio.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <limits.h>
 
 #include "mem.h"
@@ -587,3 +588,13 @@ void audio_generate_luts() {
 
 }
 
+
+#ifdef AUDIO_NONE
+
+uint32_t audio_sample_rate = 48000;
+uint32_t audio_amount_channels = 2;
+
+void audio_backend_init() {}
+void audio_backend_deinit() {}
+
+#endif

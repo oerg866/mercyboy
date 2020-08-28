@@ -68,6 +68,11 @@
 
 #define MASTER_CLOCK 4194304
 
+#ifdef AUDIO_NONE
+#define SAMPLE int16_t
+#define SAMPLE_MAX INT16_MAX
+#endif
+
 struct audio_channel {
     uint8_t nr0,nr1,nr2,nr3,nr4;
 };
