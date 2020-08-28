@@ -14,10 +14,9 @@
 #endif
 
 
-int main(int argc, char* argv[])
-//int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
-{
 
+int main(int argc, char* argv[])
+{
     trace_init(0, 0, NULL);
 
 #ifdef DEBUG
@@ -28,8 +27,6 @@ int main(int argc, char* argv[])
     trace_init(0, 1, dbg);
 #endif
 
-
-    printf("MercyBoy TEST VERSION\n");
 
     FILE *infile = fopen(argv[1], "rb");
 
@@ -46,6 +43,7 @@ int main(int argc, char* argv[])
 
     int width = 160;
     int height = 144;
+    int bitdepth = 32;
 
     printf ("File size: %u bytes.\n", fsize);
     cpu_init();
@@ -53,7 +51,7 @@ int main(int argc, char* argv[])
     int result = mem_init(romfile, fsize);
 
     audio_init();
-    video_backend_init(width, height);
+    video_backend_init(width, height, bitdepth);
     video_init();
 
     // Run CPU
