@@ -63,8 +63,9 @@ int main(int argc, char* argv[])
 
     free(romfile);
 
+#ifdef USING_SDL
     SDL_Quit();
-
+#endif
 
     return result;
 }
