@@ -4,6 +4,8 @@
 #include <winuser.h>
 #include "input.h"
 
+#include <stdint.h>
+
 uint8_t sys_buttons_all = 0;
 uint8_t sys_buttons_old = 0;
 
