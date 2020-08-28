@@ -2,8 +2,13 @@
 
 #include "video.h"
 
-#include <stdio.h>
+/*
+ *  Video Backend Implementation for GDI Win32 (for very old systems)
+ *
+ */
+
 #include <SDL2/SDL.h>
+#include <stdio.h>
 
 #ifdef USE_AUDIO_TIMING
 #include "audio.h"
@@ -14,10 +19,10 @@ SDL_Window * video_window = NULL;
 SDL_Surface * window_surface = NULL;
 
 uint32_t *framebuffer_pixels = NULL;
-
 uint32_t pal_rgb[4*3]; // BGP, OBP1 and OBP2 in RGB32 format
+const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
 
-int video_backend_init(int width, int height) {
+int video_backend_init(int width, int height, int bitdepth) {
 
     video_window = SDL_CreateWindow("MercyBoy",
                                           SDL_WINDOWPOS_CENTERED,

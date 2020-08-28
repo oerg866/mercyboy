@@ -3,7 +3,10 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include <SDL2/SDL.h>
+#include <stdint.h>
+
+#define LCD_WIDTH           160
+#define LCD_HEIGHT          144
 
 #define LINES_PER_FRAME     154
 #define CYCLES_PER_LINE     456
@@ -61,7 +64,6 @@
 #define PAL_OFFSET_OBP0     4
 #define PAL_OFFSET_OBP1     8
 
-extern const uint32_t bw_palette[4];
 extern uint8_t pal_int[4*3];
 
 void video_init();
@@ -74,7 +76,7 @@ void video_update_framebuffer();
 
 // Backend functions
 
-int video_backend_init(int width, int height);
+int video_backend_init(int width, int height, int bitdepth);
 void video_backend_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_backend_draw_line(int line, uint8_t *linebuf);
 void video_backend_update_framebuffer();

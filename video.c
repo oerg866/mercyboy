@@ -1,6 +1,7 @@
 #include "video.h"
 
 #include <stdio.h>
+#include <string.h>
 #include "cpu.h"
 #include "mem.h"
 #include "sys.h"
@@ -41,7 +42,6 @@ uint32_t framebuffer32 [160*144];
 uint32_t linebuf_final[160];
 uint8_t linebuf[160];
 
-const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
 uint8_t pal_int[4*3] = {0,1,2,3, 0,1,2,3, 0,1,2,3};
 
 void video_init() {
