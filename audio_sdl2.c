@@ -8,6 +8,7 @@
 #include "audio_sdl2.h"
 
 #include <stdio.h>
+#include <SDL2/SDL.h>
 
 static uint8_t *audio_chunk;
 static uint8_t *audio_pos;
