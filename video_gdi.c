@@ -201,7 +201,6 @@ void video_backend_update_framebuffer() {
     {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-        printf("dispatched\n");
     }
 
 
@@ -212,7 +211,6 @@ void video_backend_update_framebuffer() {
     Sleep(16);
 #endif
 
-    printf("dispatched\n");
 }
 
 #endif
