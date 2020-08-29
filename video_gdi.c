@@ -27,7 +27,7 @@ const uint16_t  bw_palette_16[4] = {0xFFFF,0xAD55,0x632C,0x0000};
 const uint32_t  bw_palette_32[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
 
 uint16_t       *framebuffer_16;  // These will be allocated as needed so there is not unnecessary memory usage
-uint32_t       *framebuffer_32;
+uint32_t       *framebuffer_32;  // TODO: Replace with union
 
 BITMAPINFO      bmi;
 
@@ -78,6 +78,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 int video_backend_init(int width, int height, int bitdepth) {
 
+    // Initialize framebuffers and palettes
+
     video_gdi_bpp = bitdepth;
 
     if (video_gdi_bpp == 16) { // 16 bpp graphics, might be helpful for Win3.x support later
@@ -101,7 +103,6 @@ int video_backend_init(int width, int height, int bitdepth) {
     HMODULE hInstance = GetModuleHandle(NULL);
 
     // Make and register windowclass
-
 
     WNDCLASS wc = { };
 
@@ -190,12 +191,14 @@ inline void video_backend_draw_line(int line, uint8_t *linebuf) {
 
 void video_backend_update_framebuffer() {
 
-    // For some reason, the window surface has a different format even though it's supposed to be 32 bit rgb...
-
-    MSG msg;
+    //  Invalidate region to schedule repaint
 
     InvalidateRgn(hwnd,0,0);
     UpdateWindow (hwnd);
+
+    // Process all messages queued since the last frame
+
+    MSG msg;
 
     while (PeekMessage(&msg, hwnd,  0, 0, PM_REMOVE))
     {
@@ -203,6 +206,7 @@ void video_backend_update_framebuffer() {
         DispatchMessage(&msg);
     }
 
+    // Do timing
 
 #ifdef USE_AUDIO_TIMING
     while (audio_timer < 0.016);
