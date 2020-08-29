@@ -379,9 +379,8 @@ void audio_envelope_timer() {
 
                         audio_volume[i] = (audio_volume[i] + 1) & 0x0f;
 
-#ifdef AUDIO_VERBOSE
-                        printf("AUDIO: CH %d - increasing volume %02x\n", i, audio_volume[i]);
-#endif
+                        trace(TRACE_AUDIO,"AUDIO: CH %d - increasing volume %02x\n", i, audio_volume[i]);
+
                     }
                     else {
 
@@ -391,9 +390,8 @@ void audio_envelope_timer() {
                             audio_disable_channel(i);
                         }
 
-#ifdef AUDIO_VERBOSE
-//                        printf("AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
-#endif
+                        trace(TRACE_AUDIO,"AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
+
                     }
                 }
                 audio_update_volume(i);
@@ -417,9 +415,8 @@ void audio_length_timer() {
                 if (audio_chans[i].nr4 & AUDIO_CONSECUTIVE) {    // Is it in length mode?
                     audio_length[i] -= 1;                           // decrease length
 
-#ifdef AUDIO_VERBOSE
-                    printf("AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
-#endif
+                    trace(TRACE_AUDIO,"AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
+
                     if (!audio_length[i])                           // if we're at zero, decduct
                     {
                         // Disable channel if length is over
