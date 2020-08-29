@@ -393,10 +393,6 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         if (addr == MEM_SCX)
             trace(TRACE_SYS, "SCX Write: %02x\n", data);
 
-        if (addr == MEM_LCDC) {
-            printf("Yada %02x", data & LCDC_LCDEN);
-        }
-
         ram_io[addr - 0xFF00] = data;
 
     } else if   (addr < 0xFF80) {
