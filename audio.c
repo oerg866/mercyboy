@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 
 #include "mem.h"
 #include "sys.h"
@@ -19,7 +20,6 @@ static float audio_sweep_cycle = 0;
 static uint8_t audio_sweep_shift = 0;
 static float audio_sweep_counter = 0;
 static uint8_t audio_sweep_enabled = 0;
-static float audio_sweep_old = 0;
 static float audio_sweep_frequency = 0;
 
 // Predefined array of samples for each square wave duty cycle type.
