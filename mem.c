@@ -187,8 +187,10 @@ uint8_t cpu_read8_force(uint16_t addr) {
          *  HANDLE JOYPAD
          */
 
-        if (addr == MEM_JOYPAD) {
+        if        (addr == MEM_JOYPAD) {
             return sys_read_joypad();
+        } else if (addr == MEM_LINE) {
+            return video_get_line();
         }
 
         return ram_io[addr - 0xFF00];
@@ -390,6 +392,10 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
         if (addr == MEM_SCX)
             trace(TRACE_SYS, "SCX Write: %02x\n", data);
+
+        if (addr == MEM_LCDC) {
+            printf("Yada %02x", data & LCDC_LCDEN);
+        }
 
         ram_io[addr - 0xFF00] = data;
 

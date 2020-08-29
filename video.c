@@ -50,6 +50,14 @@ void video_init() {
     VID_LY = 0x00;
 }
 
+inline uint8_t video_get_line() {
+    if (!(VID_LCDC & LCDC_LCDEN)) {
+        return 0;
+    } else {
+        return VID_LY;
+    }
+}
+
 void video_update_palette(uint8_t pal_offset, uint8_t reg) {
     // Update a palette. pal_offset is offset in palette arrays to take. 0 for bgp, 1*4 for obp0, 2*4 for obp1
     *(uint32_t*) &pal_int[pal_offset] =
@@ -120,8 +128,11 @@ void video_cycles(int cycles) {
             // last line was drawn, time to update the framebuffer and req interrupts
             video_update_framebuffer();
 
-            // request vblank interrupt
-            sys_interrupt_req(INT_VBI);
+            // request vblank interrupt if LCD is enabled
+            if (VID_LCDC & LCDC_LCDEN)
+                sys_interrupt_req(INT_VBI);
+
+
             // for some reason STAT can also trigger a int on vblank
             if (VID_STAT & STAT_IE_VBL)
                 sys_interrupt_req(INT_LCD);

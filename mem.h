@@ -55,6 +55,7 @@ extern uint8_t ram_ie;         // FFFF
 #define MEM_NR51    0xFF25
 #define MEM_NR52    0xFF26
 
+#define MEM_LCDC    0xFF40
 #define MEM_SCY     0xFF42
 #define MEM_SCX     0xFF43
 #define MEM_LINE    0xFF44
