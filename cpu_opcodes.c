@@ -262,7 +262,7 @@ void op_add16_sp_imm() {
     alu_add16_imm8(&reg, num);
     *sp = bs(reg);
     *flags &= (FLAG_H | FLAG_C);
-    ipc(3); cycles(16);
+    ipc(2); cycles(16);
 }
 
 
