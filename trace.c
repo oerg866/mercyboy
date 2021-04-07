@@ -47,11 +47,11 @@ void trace(uint8_t trace_lvl, char* fmt, ...) {
             trace_lvl = trace_lvl >> 1;
         }
         if (trace_file) {
-            fprintf(trace_file, trace_strings[i]);
+            fprintf(trace_file, "%s", trace_strings[i]);
             vfprintf(trace_file, fmt, ap);
         }
         if (trace_print) {
-            printf(trace_strings[i]);
+            printf("%s", trace_strings[i]);
             vprintf(fmt, ap);
         }
         va_end(ap);
