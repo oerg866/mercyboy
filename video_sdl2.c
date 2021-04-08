@@ -36,25 +36,20 @@ int video_backend_init(int width, int height, int bitdepth) {
         return -1;
     }
 
-    uint32_t rmask, gmask, bmask, amask;
+    window_surface = SDL_GetWindowSurface(video_window);
 
-    /* SDL interprets each pixel as a 32-bit number, so our masks must depend
-       on the endianness (byte order) of the machine */
+    if (!window_surface) {
+        printf("Failed to get surface from the window\n");
+        return -1;
+    }
 
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-    rmask = 0xff000000;
-    gmask = 0x00ff0000;
-    bmask = 0x0000ff00;
-    amask = 0x000000ff;
-#else
-    rmask = 0x000000ff;
-    gmask = 0x0000ff00;
-    bmask = 0x00ff0000;
-    amask = 0xff000000;
-#endif
-
-    framebuffer = SDL_CreateRGBSurface(0, 160, 144, 32,
-                                         rmask, gmask, bmask, amask);
+    framebuffer = SDL_CreateRGBSurface(0,
+                                       160, 144,
+                                       32,
+                                       window_surface->format->Rmask,
+                                       window_surface->format->Gmask,
+                                       window_surface->format->Bmask,
+                                       window_surface->format->Amask);
 
     if (!framebuffer) {
         printf("Error creating internal framebuffer\n");
@@ -62,15 +57,7 @@ int video_backend_init(int width, int height, int bitdepth) {
     }
 
     // make a pointer to the actual pixel data of this surface
-
     framebuffer_pixels = framebuffer->pixels;
-
-    window_surface = SDL_GetWindowSurface(video_window);
-
-    if (!window_surface) {
-        printf("Failed to get surface from the window\n");
-        return -1;
-    }
 
     return 0;
 }
@@ -100,8 +87,8 @@ void video_backend_update_framebuffer() {
 
     // For some reason, the window surface has a different format even though it's supposed to be 32 bit rgb...
 
-    SDL_Surface *opt = SDL_ConvertSurface(framebuffer, window_surface->format, 0);
-    SDL_BlitScaled(opt, NULL, window_surface, &stretchRect);
+//    SDL_Surface *opt = SDL_ConvertSurface(framebuffer, window_surface->format, 0);
+    SDL_BlitScaled(framebuffer, NULL, window_surface, &stretchRect);
 
     SDL_UpdateWindowSurface(video_window);
 
