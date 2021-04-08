@@ -845,26 +845,24 @@ void op_jp_ind_hl() {
 
 void op_jr() {
     // jr n
-    *pc = *pc + (int8_t) cpu_read8(*pc+1) + 2;
+    *pc = *pc + (int16_t) cpu_read8_signed(*pc+1) + 2;
     cycles(8);
 }
 
 void op_jr_cc(){
     // jr cc, nn
-    uint16_t old_pc = *pc;
-    int8_t offset = (int8_t) cpu_read8(*pc+1)+2;
-    switch (op_get_cc(op)) {
-    case COND_NZ:
-        if (!(*flags & FLAG_Z)) *pc += offset; break;
-    case COND_Z:
-        if (*flags & FLAG_Z) *pc += offset; break;
-    case COND_NC:
-        if (!(*flags & FLAG_C)) *pc += offset; break;
-    case COND_C:
-        if (*flags & FLAG_C) *pc += offset; break;
+    uint8_t cc = op_get_cc(op);
+
+    if (((cc == COND_NZ) && !(*flags & FLAG_Z))
+    ||  ((cc == COND_Z)  &&  (*flags & FLAG_Z))
+    ||  ((cc == COND_NC) && !(*flags & FLAG_C))
+    ||  ((cc == COND_C)  &&  (*flags & FLAG_C)))
+    {
+        *pc += (int16_t) cpu_read8_signed(*pc+1) + 2;
+        return;
     }
 
-    if (old_pc == *pc) ipc(2);
+    ipc(2);
     cycles(8);
 }
 

@@ -218,6 +218,15 @@ uint8_t cpu_read8(uint16_t addr) {
 
 }
 
+int8_t cpu_read8_signed(uint16_t addr) {
+    // Just a copy of read8 but returns signed int... makes cpu opcode code a bit cleaner
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+    return (int8_t) cpu_read8_force(addr);
+}
+
 uint16_t cpu_read16(uint16_t addr) {
 
     // If OAM DMA is going on, ignore r/w to addresses below 0xFE00

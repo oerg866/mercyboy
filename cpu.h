@@ -80,6 +80,7 @@ uint16_t process_interrupts();
 // CPU_MEM.C
 
 uint8_t cpu_read8(uint16_t addr);
+int8_t cpu_read8_signed(uint16_t addr);
 uint16_t cpu_read16(uint16_t addr);
 
 void cpu_write8(uint16_t addr, uint8_t n);
