@@ -42,7 +42,7 @@ uint32_t framebuffer32 [160*144];
 uint32_t linebuf_final[160];
 uint8_t linebuf[160];
 
-uint8_t pal_int[4*3] = {0,1,2,3, 0,1,2,3, 0,1,2,3};
+uint8_t pal_int[4*3] = {3,2,1,0, 3,2,1,0, 3,2,1,0};
 
 void video_init() {
     video_line_cycles = cycles_per_line;
@@ -60,11 +60,14 @@ inline uint8_t video_get_line() {
 
 void video_update_palette(uint8_t pal_offset, uint8_t reg) {
     // Update a palette. pal_offset is offset in palette arrays to take. 0 for bgp, 1*4 for obp0, 2*4 for obp1
-    *(uint32_t*) &pal_int[pal_offset] =
-          (reg & 0x03) << 0
-        | (reg & 0x0C) << (8 - 2)
-        | (reg & 0x30) << (16 - 4)
-        | (reg & 0xC0) << (24 - 6);
+    pal_int[pal_offset+0] = (reg & 0x03) >> 0;
+    pal_int[pal_offset+1] = (reg & 0x0C) >> 2;
+    pal_int[pal_offset+2] = (reg & 0x30) >> 4;
+    pal_int[pal_offset+3] = (reg & 0xC0) >> 6;
+
+    if (pal_offset == PAL_OFFSET_OBP0) {
+        printf("WRITE TO OBP0 = %02x %02x %02x %02x\n", pal_int[pal_offset+0], pal_int[pal_offset+1], pal_int[pal_offset+2], pal_int[pal_offset+3] );
+    }
 
     // Allow video backend to update palette in its own format
     video_backend_update_palette(pal_offset, reg);
