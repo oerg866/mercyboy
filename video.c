@@ -405,11 +405,14 @@ void video_draw_line() {
     uint16_t tileidx;
 
     if (VID_LCDC & LCDC_BG_TILEMAP) {
-        tileidx = 0x1c00 + ((((VID_SCY + VID_LY) >> 3) << 5) + ((VID_SCX >> 3) & 0x3FF));
+        tileidx = 0x1c00;
     } else {
 
-        tileidx = 0x1800 + ((((VID_SCY + VID_LY) >> 3) << 5) + ((VID_SCX >> 3) & 0x3FF));
+        tileidx = 0x1800;
     }
+
+    tileidx += (((int16_t) VID_SCY + (int16_t) VID_LY) << 2) & 0xFBE0;
+    tileidx += ((int16_t) VID_SCX >> 3) & 0x3FF;
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
 
