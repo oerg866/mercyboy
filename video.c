@@ -206,8 +206,12 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
     // Respect sprite VERTICAL FLIP attribute
 
-    if (sprite_attr & SPRITE_ATTR_YFLIP)
-        yoffset = 7 - yoffset;
+    if (tiles_type == TILES_SPRITES) {
+        int sprite_height = 8 + ((VID_LCDC & LCDC_SPRITESIZE) << 1);
+        if (sprite_attr & SPRITE_ATTR_YFLIP) {
+            yoffset = (sprite_height - 1) - yoffset;
+        }
+    }
 
     yoffset = yoffset << 1;
 
