@@ -22,6 +22,8 @@ uint32_t *framebuffer_pixels = NULL;
 uint32_t pal_rgb[4*3]; // BGP, OBP1 and OBP2 in RGB32 format
 const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
 
+uint8_t video_backend_status;
+
 int video_backend_init(int width, int height, int bitdepth) {
 
     video_window = SDL_CreateWindow("MercyBoy",
@@ -59,6 +61,7 @@ int video_backend_init(int width, int height, int bitdepth) {
     // make a pointer to the actual pixel data of this surface
     framebuffer_pixels = framebuffer->pixels;
 
+    video_backend_status = VID_BACKEND_STATUS_RUNNING;
     return 0;
 }
 
@@ -100,6 +103,20 @@ void video_backend_update_framebuffer() {
 #endif
 
     SDL_PumpEvents();
+}
+
+
+void video_backend_handle_events() {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            video_backend_status = VID_BACKEND_STATUS_EXIT;
+        }
+    }
+}
+
+uint8_t video_backend_get_status() {
+    return video_backend_status;
 }
 
 #endif

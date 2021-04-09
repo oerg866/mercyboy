@@ -149,14 +149,7 @@ uint8_t sys_read_joypad() {
 }
 
 void sys_handle_system() {
-#ifdef VIDEO_SDL2
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-            sys_running = 0;
-        }
-    }
-#endif
+    // Nothing here yet...
 }
 
 void sys_handle_joypad() {

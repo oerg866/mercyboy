@@ -64,6 +64,9 @@
 #define PAL_OFFSET_OBP0     4
 #define PAL_OFFSET_OBP1     8
 
+#define VID_BACKEND_STATUS_EXIT     0
+#define VID_BACKEND_STATUS_RUNNING  1
+
 extern uint8_t pal_int[4*3];
 
 void video_init();
@@ -81,6 +84,8 @@ int video_backend_init(int width, int height, int bitdepth);
 void video_backend_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_backend_draw_line(int line, uint8_t *linebuf);
 void video_backend_update_framebuffer();
+void video_backend_handle_events();
+uint8_t video_backend_get_status();
 
 struct spritedata {
     uint8_t y;

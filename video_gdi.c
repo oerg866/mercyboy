@@ -196,6 +196,23 @@ void video_backend_update_framebuffer() {
     InvalidateRgn(hwnd,0,0);
     UpdateWindow (hwnd);
 
+    // Do timing
+
+#ifdef USE_AUDIO_TIMING
+    while (audio_timer < 0.016);
+    audio_timer = audio_timer - 0.016;
+#else
+    Sleep(16);
+#endif
+
+}
+
+uint8_t video_backend_get_status() {
+    // TODO
+    return VID_BACKEND_STATUS_RUNNING;
+}
+
+void video_backend_handle_events() {
     // Process all messages queued since the last frame
 
     MSG msg;
@@ -205,15 +222,6 @@ void video_backend_update_framebuffer() {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
-    // Do timing
-
-#ifdef USE_AUDIO_TIMING
-    while (audio_timer < 0.016);
-    audio_timer = audio_timer - 0.016;
-#else
-    Sleep(16);
-#endif
 
 }
 

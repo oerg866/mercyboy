@@ -450,8 +450,11 @@ void video_update_framebuffer() {
 
     video_backend_update_framebuffer();
 
+    video_backend_handle_events();
     sys_handle_system();
     sys_handle_joypad();
-
+    if (video_backend_get_status() == VID_BACKEND_STATUS_EXIT) {
+        sys_running = 0;
+    }
 
 }
