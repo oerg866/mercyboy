@@ -349,15 +349,15 @@ void video_draw_sprites() {
 
         // iterate through OAM
 
+        // Figure out Y position
+        yoffset = VID_LY - (cursprite->y - 16);
+
         // in 8x8 mode, a tile is visible if current line - Y position - 16 is less than 8 (or 16 in 16 mode)
         // and it is also visible if X position != 0 and X position < 168
-        if (((unsigned) (VID_LY - (cursprite->y - 16)) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
+        if (((unsigned) (yoffset) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
 
 
             // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
-
-            // Figure out Y position
-            yoffset = VID_LY - (cursprite->y - 16);
 
             // Figure out X position and count
             if (cursprite->x < 8) {
@@ -381,6 +381,8 @@ void video_draw_sprites() {
                 xcount = 8;
             }
 
+            // We don't need to take care of the tile ID for 16-pixel-tall sprites because
+            // the offset will be big enough to just reach into the correct tile's pixel data anyway.
             video_draw_tile(cursprite->tile, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
 
             drawn_sprites++;
@@ -403,10 +405,10 @@ void video_draw_line() {
     uint16_t tileidx;
 
     if (VID_LCDC & LCDC_BG_TILEMAP) {
-        tileidx = 0x1c00 + ((((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3) & 0x3FF);
+        tileidx = 0x1c00 + ((((VID_SCY + VID_LY) >> 3) << 5) + ((VID_SCX >> 3) & 0x3FF));
     } else {
 
-        tileidx = 0x1800 + ((((VID_SCY + VID_LY) >> 3) << 5) + (VID_SCX >> 3) & 0x3FF);
+        tileidx = 0x1800 + ((((VID_SCY + VID_LY) >> 3) << 5) + ((VID_SCX >> 3) & 0x3FF));
     }
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
