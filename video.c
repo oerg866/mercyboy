@@ -44,17 +44,24 @@ uint8_t linebuf[160];
 
 uint8_t pal_int[4*3] = {3,2,1,0, 3,2,1,0, 3,2,1,0};
 
-void video_init() {
+uint8_t video_current_line = 0;
+
+void video_reset_lcd() {
+    // Called when LCD is disabled and getting enabled again.
     video_line_cycles = cycles_per_line;
     video_frame_cycles = cycles_per_frame;
-    VID_LY = 0x00;
+    video_current_line = 0x00;
+}
+
+void video_init() {
+    video_reset_lcd();
 }
 
 inline uint8_t video_get_line() {
     if (!(VID_LCDC & LCDC_LCDEN)) {
         return 0;
     } else {
-        return VID_LY;
+        return video_current_line;
     }
 }
 
@@ -64,10 +71,6 @@ void video_update_palette(uint8_t pal_offset, uint8_t reg) {
     pal_int[pal_offset+1] = (reg & 0x0C) >> 2;
     pal_int[pal_offset+2] = (reg & 0x30) >> 4;
     pal_int[pal_offset+3] = (reg & 0xC0) >> 6;
-
-    if (pal_offset == PAL_OFFSET_OBP0) {
-        printf("WRITE TO OBP0 = %02x %02x %02x %02x\n", pal_int[pal_offset+0], pal_int[pal_offset+1], pal_int[pal_offset+2], pal_int[pal_offset+3] );
-    }
 
     // Allow video backend to update palette in its own format
     video_backend_update_palette(pal_offset, reg);
@@ -85,45 +88,51 @@ void video_cycles(int cycles) {
     // Cycles 375 - 85 = MODE_RENDERING
     // Cycles 84 - 0 = MODE_HBL
 
-    if (VID_LY >=144) {
+    if (VID_LCDC & LCDC_LCDEN) {
+        // LCD is ENABLED, process STAT updates & interrupts
+        if (video_current_line >=144) {
 
-        // If we are outside of visible display, we are in VBL period
-        VID_STAT = MODE_VBL;
-
-    } else {
-
-        if          (video_line_cycles >= 376) {
-
-            VID_STAT = MODE_SCAN_OAM;
-            // Do we need to fire an OAM interrupt?
-            if ((oldstat & STAT_IE_OAM) && ((oldstat & 0x03) != MODE_SCAN_OAM))
-                sys_interrupt_req(INT_LCD);
-
-        } else if   (video_line_cycles >= 85) {
-
-            VID_STAT = MODE_RENDERING;
+            // If we are outside of visible display, we are in VBL period
+            VID_STAT = MODE_VBL;
 
         } else {
 
-            // Do we need to fire an OAM interrupt?
-            if ((oldstat & STAT_IE_HBL) && ((oldstat & 0x03) != MODE_HBL))
-                sys_interrupt_req(INT_LCD);
-            VID_STAT = MODE_HBL;
+            if          (video_line_cycles >= 376) {
+
+                VID_STAT = MODE_SCAN_OAM;
+                // Do we need to fire an OAM interrupt?
+                if ((oldstat & STAT_IE_OAM) && ((oldstat & 0x03) != MODE_SCAN_OAM))
+                    sys_interrupt_req(INT_LCD);
+
+            } else if   (video_line_cycles >= 85) {
+
+                VID_STAT = MODE_RENDERING;
+
+            } else {
+
+                // Do we need to fire an OAM interrupt?
+                if ((oldstat & STAT_IE_HBL) && ((oldstat & 0x03) != MODE_HBL))
+                    sys_interrupt_req(INT_LCD);
+                VID_STAT = MODE_HBL;
+
+            }
 
         }
-
+    } else {
+        // LCD is DISABLED - Mode 0, do nothing, no interrupts
+        VID_STAT = MODE_HBL;
     }
 
     VID_STAT |= (oldstat & 0xFC);
 
     if (video_line_cycles <= 0) {
 
-        if (VID_LY < 143) {
+        if (video_current_line < 143) {
 
             // draw current line if we're in active display
             video_draw_line();
 
-        } else if (VID_LY == 143) {
+        } else if (video_current_line == 143) {
 
             // draw last line of active display
             video_draw_line();
@@ -132,32 +141,33 @@ void video_cycles(int cycles) {
             video_update_framebuffer();
 
             // request vblank interrupt if LCD is enabled
-            if (VID_LCDC & LCDC_LCDEN)
+            if (VID_LCDC & LCDC_LCDEN) {
                 sys_interrupt_req(INT_VBI);
 
-
-            // for some reason STAT can also trigger a int on vblank
-            if (VID_STAT & STAT_IE_VBL)
-                sys_interrupt_req(INT_LCD);
+                // for some reason STAT can also trigger a int on vblank
+                if (VID_STAT & STAT_IE_VBL)
+                    sys_interrupt_req(INT_LCD);
+            }
         }
 
-        VID_LY++;
+        video_current_line++;
 
-        // update STAT register coincidence flag
-        if (VID_LYC == VID_LY) {
+        if (VID_LCDC & LCDC_LCDEN) {
+            // If LCD is enabled, update STAT register coincidence flag
+            if (VID_LYC == video_current_line) {
 
-            VID_STAT |= STAT_COINCIDENCE;
+                VID_STAT |= STAT_COINCIDENCE;
 
-            // if LY = LYC and interrupt for that is enabled, request it
-            if (VID_STAT & STAT_IE_LY)
-                sys_interrupt_req(INT_LCD);
+                // if LY = LYC and interrupt for that is enabled, request it
+                if (VID_STAT & STAT_IE_LY)
+                    sys_interrupt_req(INT_LCD);
 
-        } else {
+            } else {
 
-            VID_STAT &= ~STAT_COINCIDENCE;
+                VID_STAT &= ~STAT_COINCIDENCE;
 
+            }
         }
-
 
         video_line_cycles = cycles_per_line + video_line_cycles;
 
@@ -166,12 +176,10 @@ void video_cycles(int cycles) {
     // if video line is higher than visible display, assert vblank
 
     if (video_frame_cycles <= 0) {
-
         trace(TRACE_VIDEO, "SCX: %02x, SCY: %02x\n", VID_SCX, VID_SCY);
 
         // We're done, reset & draw screen
-        VID_LY = 0x00;
-        //sys_handle_joypads();
+        video_current_line = 0x00;
         video_frame_cycles = cycles_per_frame + video_frame_cycles;
     }
 
@@ -280,11 +288,11 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     if (tiles_type == TILES_BG) {
         // Respect Scroll X and Y for BG tiles.
         xrest = (VID_SCX & 0x07) ;
-        yoffset = ((VID_SCY + VID_LY) & 0x07); // Get y position in tile to start from
+        yoffset = ((VID_SCY + video_current_line) & 0x07); // Get y position in tile to start from
     } else {
         // For Window, scroll doesn't matter.
         xrest = draw_width & 0x07;
-        yoffset = ((VID_LY - VID_WY) & 0x07);
+        yoffset = ((video_current_line - VID_WY) & 0x07);
     }
 
 
@@ -350,7 +358,7 @@ void video_draw_sprites() {
         // iterate through OAM
 
         // Figure out Y position
-        yoffset = VID_LY - (cursprite->y - 16);
+        yoffset = video_current_line - (cursprite->y - 16);
 
         // in 8x8 mode, a tile is visible if current line - Y position - 16 is less than 8 (or 16 in 16 mode)
         // and it is also visible if X position != 0 and X position < 168
@@ -400,6 +408,14 @@ void video_draw_line() {
 
     memset(linebuf, 0, 160);
 
+    // If LCD is disabled we draw nothing!
+
+    if (!(VID_LCDC & LCDC_LCDEN)) {
+        // convert line buffer to actual line inside the backend
+        video_backend_draw_line(video_current_line, linebuf);
+        return;
+    }
+
     // Calculate which tile SCX and SCY corresponds to
 
     uint16_t tileidx;
@@ -411,7 +427,7 @@ void video_draw_line() {
         tileidx = 0x1800;
     }
 
-    tileidx += (((int16_t) VID_SCY + (int16_t) VID_LY) << 2) & 0xFBE0;
+    tileidx += (((int16_t) VID_SCY + (int16_t) video_current_line) << 2) & 0xFBE0;
     tileidx += ((int16_t) VID_SCX >> 3) & 0x3FF;
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
@@ -423,15 +439,15 @@ void video_draw_line() {
 
     // Draw window ONLY if it is enabled AND in visible range
 
-    if ((VID_LCDC & LCDC_WINEN) && (VID_LY >= VID_WY) && (VID_WX < (160+7-1))) {
+    if ((VID_LCDC & LCDC_WINEN) && (video_current_line >= VID_WY) && (VID_WX < (160+7-1))) {
 
         // Draw window
 
         if (VID_LCDC & LCDC_WIN_TILEMAP) {
-            tileidx = 0x1c00 + (((VID_LY - VID_WY) >> 3) << 5);
+            tileidx = 0x1c00 + (((video_current_line - VID_WY) >> 3) << 5);
         } else {
 
-            tileidx = 0x1800 + (((VID_LY - VID_WY) >> 3) << 5);
+            tileidx = 0x1800 + (((video_current_line - VID_WY) >> 3) << 5);
         }
 
         uint16_t window_start = VID_WX - 7;
@@ -443,7 +459,7 @@ void video_draw_line() {
 
     // convert line buffer to actual line inside the backend
 
-    video_backend_draw_line(VID_LY, linebuf);
+    video_backend_draw_line(video_current_line, linebuf);
 
 }
 

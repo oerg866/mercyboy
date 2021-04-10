@@ -69,6 +69,7 @@
 
 extern uint8_t pal_int[4*3];
 
+void video_reset_lcd();
 void video_init();
 uint8_t video_get_line();
 void video_update_palette(uint8_t pal_offset, uint8_t reg);
