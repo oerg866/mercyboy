@@ -27,6 +27,10 @@ uint8_t ram_ext[0x20000]; // Up to 128K
 
 uint8_t ram_ie;         // FFFF
 
+uint8_t ram_mbc_bank_bits;
+
+uint16_t ram_extram_mask;
+
 int mem_init(uint8_t *file, int fsize) {
 
     romfile = file;
@@ -123,6 +127,8 @@ int mem_init(uint8_t *file, int fsize) {
 
     }
 
+    ram_mbc_bank_bits = 0;
+
     return 0;
 }
 
@@ -158,6 +164,33 @@ uint8_t* mem_addr(uint16_t addr) {
 
 }
 
+void mem_update_banks_mbc1() {
+    // Update RAM/ROM bank(s/pointers) based on modes
+
+    uint32_t tmp_bank = (uint32_t) sys_mbc_bank_bits;
+
+    // 00, 10, 20, 30 select bank 01, 11, 21, 31
+    if ((tmp_bank & 0x1F) == 0x00)
+        ++tmp_bank;
+
+    // 512KB 0x01-0x1F / 8KB RAM banks mode
+    if (sys_mbc1_s == MBC1_512_32) {
+        ram2 = &ram_ext[(tmp_bank >> 5) << 13];
+        tmp_bank &= 0x1F;
+    } else {
+        // 2MB / 8KB RAM, reset RAM bank to 0.
+        ram2 = &ram_ext[0];
+    }
+
+    uint32_t romaddr = tmp_bank << 14;
+
+    trace(TRACE_MBC, "New MBC ROM Address set: %08x (%02x), max %08x \n", romaddr, tmp_bank, romsize - 0x4000);
+
+    rom2 = &romfile[romaddr];   // Set new bank window
+
+
+}
+
 uint8_t cpu_read8_force(uint16_t addr) {
 
     if          (addr < 0x4000) {
@@ -170,8 +203,11 @@ uint8_t cpu_read8_force(uint16_t addr) {
         // VRAM write 8000 - 9FFF
         return vram[addr - 0x8000];
     } else if   (addr < 0xC000) {
-        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
-            return ram2[addr-0xA000];
+        // MBC ext RAM, quit if ram disabled
+        // OR address for MBC2 (only up to a1ff) is impossible.
+        if (!sys_extmem_en || (sys_ismbc2 && (addr > 0xA1FF)))
+            return 0;
+        return ram2[addr-0xA000];
     } else if   (addr < 0xE000) {
         return ram1[addr-0xC000];
     } else if   (addr < 0xFE00) {
@@ -265,47 +301,22 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
             if (sys_ismbc1) {
                 // Selects lower 5 bits of the ROM bank number.
-                if ((data & 0x1F) == 0) data++;     // 0x00 = 0x01, 0x20 = 0x21, ...)
-                sys_rombank = (sys_rombank & (~0x1F)) | (data & 0x1F);
+                sys_mbc_bank_bits = (sys_mbc_bank_bits & (~0x1F)) | (data & 0x1F);
             } else if (sys_ismbc2) {
-                sys_rombank = data;
+                sys_mbc_bank_bits = data;
             }
 
-            uint32_t newaddr = sys_rombank << 14;
-
-            trace(TRACE_MBC,"New MBC ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
-            rom2 = &romfile[newaddr];   // Set new bank window
+            mem_update_banks_mbc1();
 
         }
     } else if   (addr < 0x6000) {
 
         if (sys_ismbc1) {
-
             // 0x4000 - 0x5FFF RAM Bank Number *or* Upper bits of ROM bank
             // If we have ROM Banking mode, this selects upper two bits of ROM bank.
 
-            uint32_t newaddr;
-
-            if (sys_mbc1_s == MBC1_2048_8) {
-                // 2048 KiB / 8 KiB Mode (ROM Banking), set upper bits of ROM bank
-                if (data == 0x00) data = 0x01;
-                data &= 0x03;
-                sys_rombank = (sys_rombank & (~0x60)) | (data << 5);
-                newaddr = sys_rombank << 14;
-
-                trace(TRACE_MBC,"New MBC1 ROM Address set: %04x (%02x)\n", newaddr, sys_rombank);
-
-                rom2 = &romfile[newaddr];   // Set new bank window
-
-            } else if (sys_mbc1_s == MBC1_512_32) {
-                // 512 KiB / 32 KiB Mode (RAM Banking), set RAM bank
-                sys_rambank = data & 0x03;
-
-                trace(TRACE_MBC,"New MBC1 RAM Address set: %04x\n", sys_rambank << 13);
-
-                ram2 = &ram_ext[sys_rambank << 13];
-            }
-
+            sys_mbc_bank_bits = (sys_mbc_bank_bits & (~0x60)) | (data << 5);
+            mem_update_banks_mbc1();
         }
 
     } else if   (addr < 0x8000) {
@@ -313,11 +324,8 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         // Set MBC1 memory mode
 
         if  (sys_ismbc1) {
-
             sys_mbc1_s = data & 0x01;
-
             trace(TRACE_MBC, "MBC1 ROM/RAM Mode Set: %02x\n", sys_mbc1_s);
-
         }
 
     } else if   (addr < 0xA000) {
@@ -325,8 +333,9 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         vram[addr - 0x8000] = data;
     } else if   (addr < 0xC000) {
         // RAM 2, MBC2 only goes up to 0xA1FF
-        if (sys_extmem_en && (sys_ismbc1 || (sys_ismbc2 && (addr < 0xA1FF))))
-            ram2[addr-0xA000] = data;
+        if (!sys_extmem_en || (sys_ismbc2 && (addr > 0xA1FF)))
+                return;
+        ram2[addr-0xA000] = data;
     } else if   (addr < 0xE000) {
         ram1[addr-0xC000] = data;
     } else if   (addr < 0xFE00) {
@@ -348,6 +357,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
         if ((addr >= 0xFF10) && (addr <= 0xFF26)) {
             audio_handle_write(addr, data);
+            return;
         }
 
         /*

@@ -16,8 +16,7 @@ uint8_t sys_carttype;
 uint8_t sys_mbc1_s;
 uint8_t sys_romsize;
 uint8_t sys_extmem_en;
-uint8_t sys_rombank;
-uint8_t sys_rambank;
+uint8_t sys_mbc_bank_bits;
 
 uint8_t sys_ismbc1 = 0;
 uint8_t sys_ismbc2 = 0;
@@ -46,8 +45,7 @@ void sys_init() {
     sys_mbc1_s = MBC1_2048_8;
     sys_romsize = 0;
     sys_extmem_en = 0;
-    sys_rombank = 0;
-    sys_rambank = 0;
+    sys_mbc_bank_bits = 0;
 
     sys_div_cycles = SYS_DIV_INTERVAL;
     sys_timer_cycles = SYS_TIMER_CYCLES_4096HZ;

@@ -50,8 +50,7 @@
 
 extern uint8_t sys_carttype;
 extern uint8_t sys_romsize;
-extern uint8_t sys_rombank;
-extern uint8_t sys_rambank;
+extern uint8_t sys_mbc_bank_bits;
 extern uint8_t sys_extmem_en;
 extern uint8_t sys_mbc1_s;
 
