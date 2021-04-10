@@ -12,6 +12,7 @@
 uint8_t *romfile;
 uint8_t *addonram;
 
+uint32_t romsize;
 uint8_t rom1[0x8000];
 uint8_t *rom2;
 uint8_t vram[0x2000];
@@ -34,6 +35,7 @@ uint16_t ram_extram_mask;
 int mem_init(uint8_t *file, int fsize) {
 
     romfile = file;
+    romsize = fsize;
 
     if (fsize > 0x4000) fsize = 0x4000;
 
@@ -188,6 +190,11 @@ void mem_update_banks_mbc1() {
 
     rom2 = &romfile[romaddr];   // Set new bank window
 
+    if (romaddr > (romsize - 0x4000)) {
+        printf("MBC bank OUTSIDE ROM area %08x (max. %08x)! Forcing crash...", romaddr, romsize - 0x4000);
+        memset(rom1, 0xff, 0x8000);
+        rom2 = rom1;
+    }
 
 }
 
@@ -388,6 +395,14 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
         if (addr == MEM_LINE) {
             return;
+        }
+
+        if (addr == MEM_LCDC) {
+            if (!(data & LCDC_LCDEN)) {
+                VID_LY = 0x00;
+            } else if (!(VID_LCDC & LCDC_LCDEN)) {
+                video_reset_lcd();
+            }
         }
 
 #ifdef DEBUG
