@@ -432,11 +432,6 @@ void video_draw_line() {
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
 
-    // Draw sprites if they are enabled
-
-    if (VID_LCDC & LCDC_SPRITEEN)
-        video_draw_sprites();
-
     // Draw window ONLY if it is enabled AND in visible range
 
     if ((VID_LCDC & LCDC_WINEN) && (video_current_line >= VID_WY) && (VID_WX < (160+7-1))) {
@@ -459,6 +454,12 @@ void video_draw_line() {
         video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
 
     }
+
+    // Draw sprites if they are enabled
+
+    if (VID_LCDC & LCDC_SPRITEEN)
+        video_draw_sprites();
+
 
     // convert line buffer to actual line inside the backend
 
