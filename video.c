@@ -424,7 +424,7 @@ void video_draw_sprites() {
 }
 void video_draw_line() {
 
-    trace(TRACE_VIDEO, "Drawing LINE: %d\n", VID_LY);
+    trace(TRACE_VIDEO, "Drawing LINE: %d\n", video_current_line);
 
     // clear the linebuffer before drawing anything
 
