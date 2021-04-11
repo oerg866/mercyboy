@@ -25,7 +25,7 @@ SOUND:
 
 GRAPHICS:
 
-- Transparency issues with sprites
+- Transparency / Priority issues with sprites
 - Paletting is not quite right yet
 
 Games that work (mostly):
@@ -34,7 +34,10 @@ Games that work (mostly):
 - Dig Dug
 - Dr. Mario
 - F1 Race
+- Kirby's Dream Land
+- Ms. Pac Man
 - Nintendo World Cup
+- Probotector 2
 - Super Mario Land
 - Tetris
 - The Smurfs
@@ -44,10 +47,4 @@ Games with problems:
 - Gauntlet II           Squealing noise
 - Hyper Lode Runner     Raster effect when the level starts has glitched
                         graphics
-- Kirby's Dream Land    Crashes the game and emulator randomly
-- Ms. Pac Man           Score HUD is not drawn with proper width
 - Pac Man               No Sound
-- Probotector 2         Game crashes and resets at the start of the first
-                        stage
-- Super Mario Land 2    Game crashes as soon as you press start on the
-                        title screen
