@@ -219,6 +219,12 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         if (sprite_attr & SPRITE_ATTR_YFLIP) {
             yoffset = (sprite_height - 1) - yoffset;
         }
+    } else {
+        // If BG/Window isn't enabled in LCDC, we blank it and leave.
+        if (!(VID_LCDC & LCDC_BGWINEN)) {
+            memset(linebuf, 0, 160);
+            return;
+        }
     }
 
     yoffset = yoffset << 1;
