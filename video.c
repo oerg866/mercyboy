@@ -46,6 +46,8 @@ uint8_t pal_int[4*3] = {3,2,1,0, 3,2,1,0, 3,2,1,0};
 
 uint8_t video_current_line = 0;
 
+uint8_t video_sprites_xcoords_rendered[168];
+
 uint8_t video_window_y_position_internal;
 uint8_t video_window_y_counter_internal;
 uint8_t video_window_enabled_internal;
@@ -368,6 +370,8 @@ void video_draw_sprites() {
     int sprite_idx = 0;
     int video_tile_height = 8 + ((VID_LCDC & LCDC_SPRITESIZE) << 1);
 
+    memset(video_sprites_xcoords_rendered, 0, 168);
+
     struct spritedata *cursprite = (struct spritedata*) oam;
 
     int xcount;
@@ -386,8 +390,12 @@ void video_draw_sprites() {
         // and it is also visible if X position != 0 and X position < 168
         if (((unsigned) (yoffset) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
 
-
             // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
+
+            // if we already rendered a sprite with the same x coordinate, we don't draw it. (thanks to dmg-acid2)
+
+            if (video_sprites_xcoords_rendered[cursprite->x])
+                break;
 
             // Figure out X position and count
             if (cursprite->x < 8) {
@@ -414,6 +422,7 @@ void video_draw_sprites() {
             // We don't need to take care of the tile ID for 16-pixel-tall sprites because
             // the offset will be big enough to just reach into the correct tile's pixel data anyway.
             video_draw_tile(cursprite->tile, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
+            video_sprites_xcoords_rendered[cursprite->x] = 1;
 
             drawn_sprites++;
         }
