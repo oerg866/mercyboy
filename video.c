@@ -209,8 +209,7 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
     int16_t tile_num;
     uint8_t p1, p2; // tile bytes 1 and 2
-    uint8_t priority = ~(sprite_attr & SPRITE_ATTR_PRIO); // 0 = forced priority, 1 = behind bg
-
+    uint8_t priority = !(sprite_attr & SPRITE_ATTR_PRIO); // 0 = forced priority, 1 = behind bg
 
     // Respect sprite VERTICAL FLIP attribute
 
@@ -272,9 +271,11 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         newpixel =  (((p2 & (1 << (7 - i))) >> (7 - i))
                 |   (((p1 & (1 << (7 - i))) >> (7 - i)) << 1));
         // respect priority parameter!
-        if (tiles_type == TILES_SPRITES) {
-            if ((priority || ( (!priority) && (linebuf[linexoffset] == 0x00) ) ) && newpixel) {
-                linebuf[linexoffset] = newpixel + pal_offset;
+        if (tiles_type == TILES_SPRITES) {           
+            if (newpixel) {
+                if (priority || (!linebuf[linexoffset])) {
+                    linebuf[linexoffset] = newpixel + pal_offset;
+                }
             }
         } else {
             linebuf[linexoffset] = newpixel;
