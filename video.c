@@ -268,8 +268,9 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
     for (int i = xstart; i < count; i++) {
 
-        newpixel =  (((p2 & (1 << (7 - i))) >> (7 - i))
-                |   (((p1 & (1 << (7 - i))) >> (7 - i)) << 1));
+        newpixel =  ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
+                |   ((p1 & (1 << (7 - i))) >> (7 - i)));
+
         // respect priority parameter!
         if (tiles_type == TILES_SPRITES) {           
             if (newpixel) {
