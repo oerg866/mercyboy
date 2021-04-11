@@ -46,6 +46,10 @@ uint8_t pal_int[4*3] = {3,2,1,0, 3,2,1,0, 3,2,1,0};
 
 uint8_t video_current_line = 0;
 
+uint8_t video_window_y_position_internal;
+uint8_t video_window_y_counter_internal;
+uint8_t video_window_enabled_internal;
+
 void video_reset_lcd() {
     // Called when LCD is disabled and getting enabled again.
     video_line_cycles = cycles_per_line;
@@ -55,6 +59,9 @@ void video_reset_lcd() {
 
 void video_init() {
     video_reset_lcd();
+    video_window_y_position_internal = 0;
+    video_window_y_counter_internal = 0;
+    video_window_enabled_internal = 0;
     lines_per_frame = LINES_PER_FRAME; //154;
     cycles_per_line = CYCLES_PER_LINE; //456;
     cycles_per_frame = CYCLES_PER_FRAME; //456 * 154;
@@ -184,6 +191,10 @@ void video_cycles(int cycles) {
         // We're done, reset & draw screen
         video_current_line = 0x00;
         video_frame_cycles = cycles_per_frame + video_frame_cycles;
+
+        // Buffer window Y position
+        video_window_y_counter_internal = 0;
+        video_window_y_position_internal = VID_WY;
     }
 
 
@@ -303,7 +314,7 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     } else {
         // For Window, scroll doesn't matter.
         xrest = draw_width & 0x07;
-        yoffset = ((video_current_line - VID_WY) & 0x07);
+        yoffset = (video_window_y_counter_internal & 0x07);
     }
 
 
@@ -443,26 +454,41 @@ void video_draw_line() {
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
 
-    // Draw window ONLY if it is enabled AND in visible range
+    uint8_t window_visible = 0;
 
-    if ((VID_LCDC & LCDC_WINEN) && (video_current_line >= VID_WY) && (VID_WX < (160+7-1))) {
+    if (video_window_enabled_internal) {
+        if ((video_window_y_position_internal <= 143) && (VID_WX <= 166)) {
 
-        // Draw window
+            window_visible = 1;
 
-        if (VID_LCDC & LCDC_WIN_TILEMAP) {
-            tileidx = 0x1c00;
-        } else {
+            // Draw window ONLY if it is enabled AND in visible range
 
-            tileidx = 0x1800;
+            if (window_visible && (video_current_line >= video_window_y_position_internal)) {
+
+                // Draw window
+
+                if (VID_LCDC & LCDC_WIN_TILEMAP) {
+                    tileidx = 0x1c00;
+                } else {
+
+                    tileidx = 0x1800;
+                }
+                tileidx += ((video_window_y_counter_internal >> 3) << 5);
+
+
+                // Window position is offset by 7 pixels.
+                uint16_t window_start = VID_WX - 7;
+
+                trace(TRACE_VIDEO, "VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, video_window_y_position_internal);
+                video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
+
+                // If window is hidden by X/Y coordinates or disabled, then the internal line counter doesn't update.
+
+                video_window_y_counter_internal++;
+
+            }
+
         }
-        tileidx += (((video_current_line - VID_WY) >> 3) << 5);
-
-
-        // Window position is offset by 7 pixels.
-        uint16_t window_start = VID_WX - 7;
-
-        trace(TRACE_VIDEO, "VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, VID_WY);
-        video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
 
     }
 
@@ -475,6 +501,10 @@ void video_draw_line() {
     // convert line buffer to actual line inside the backend
 
     video_backend_draw_line(video_current_line, linebuf);
+
+    // Update window enabled y/n
+
+    video_window_enabled_internal = VID_LCDC & LCDC_WINEN;
 
 }
 
