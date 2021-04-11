@@ -30,9 +30,9 @@ ____33____33____33____33____33____33__________________3
 
  */
 
-int lines_per_frame = LINES_PER_FRAME; //154;
-int cycles_per_line = CYCLES_PER_LINE; //456;
-int cycles_per_frame = CYCLES_PER_FRAME; //456 * 154;
+int lines_per_frame;
+int cycles_per_line;
+int cycles_per_frame;
 
 int video_line_cycles;
 int video_frame_cycles;
@@ -55,6 +55,9 @@ void video_reset_lcd() {
 
 void video_init() {
     video_reset_lcd();
+    lines_per_frame = LINES_PER_FRAME; //154;
+    cycles_per_line = CYCLES_PER_LINE; //456;
+    cycles_per_frame = CYCLES_PER_FRAME; //456 * 154;
 }
 
 inline uint8_t video_get_line() {
