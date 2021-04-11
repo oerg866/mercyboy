@@ -32,19 +32,21 @@ Games that work (mostly):
 
 - Bubble Bobble
 - Dig Dug
+- dmg-acid2 :^)
 - Dr. Mario
 - F1 Race
+- Hyper Lode Runner
 - Kirby's Dream Land
 - Ms. Pac Man
 - Nintendo World Cup
 - Probotector 2
 - Super Mario Land
+- Super Mario Land 2
 - Tetris
 - The Smurfs
 
 Games with problems:
 
+- Bomberman GB          Mode select dpad doesn't do anything and the game is softlocked (music keeps playing)
 - Gauntlet II           Squealing noise
-- Hyper Lode Runner     Raster effect when the level starts has glitched
-                        graphics
 - Pac Man               No Sound
