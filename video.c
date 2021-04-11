@@ -307,9 +307,9 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     uint8_t tileidx_lower = tileidx & 0x1F;
     uint16_t tileidx_upper = tileidx & 0xFFE0;
 
-    if (xrest != 0) {
-        fulltiles -= 1;
+    if ((xrest != 0) && (tiles_type == TILES_BG)) {
         // Wrap around after 32 tiles.
+        fulltiles -= 1;
         tileidx = tileidx_upper | tileidx_lower;
         tileidx_lower = (tileidx_lower + 1) & 0x1F;
         video_draw_tile(tileidx, yoffset, linexoffset, xrest, 8, tiles_type, 0);
@@ -444,12 +444,15 @@ void video_draw_line() {
         // Draw window
 
         if (VID_LCDC & LCDC_WIN_TILEMAP) {
-            tileidx = 0x1c00 + (((video_current_line - VID_WY) >> 3) << 5);
+            tileidx = 0x1c00;
         } else {
 
-            tileidx = 0x1800 + (((video_current_line - VID_WY) >> 3) << 5);
+            tileidx = 0x1800;
         }
+        tileidx += (((video_current_line - VID_WY) >> 3) << 5);
 
+
+        // Window position is offset by 7 pixels.
         uint16_t window_start = VID_WX - 7;
 
         trace(TRACE_VIDEO, "VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, VID_WY);
