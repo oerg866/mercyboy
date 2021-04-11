@@ -421,7 +421,12 @@ void video_draw_sprites() {
 
             // We don't need to take care of the tile ID for 16-pixel-tall sprites because
             // the offset will be big enough to just reach into the correct tile's pixel data anyway.
-            video_draw_tile(cursprite->tile, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
+            uint8_t tile_id = cursprite->tile;
+
+            if (video_tile_height == 16)    // Ignore bit 0 for 16 pixel high objects (thanks dmg-acid2)
+                tile_id &= 0xFE;
+
+            video_draw_tile(tile_id, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
             video_sprites_xcoords_rendered[cursprite->x] = 1;
 
             drawn_sprites++;
