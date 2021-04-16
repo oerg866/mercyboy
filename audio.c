@@ -572,6 +572,9 @@ void audio_init() {
     mem_init_sample(audio_output_l, 4);            // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
     mem_init_sample(audio_output_r, 4);            // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
     audio_generate_luts();
+
+    audio_sample[0] = audio_square_waves[((AUDIO_NR11 & 0xC0) >> 6)];
+    audio_sample[1] = audio_square_waves[((AUDIO_NR21 & 0xC0) >> 6)];
 }
 
 void audio_deinit() {
