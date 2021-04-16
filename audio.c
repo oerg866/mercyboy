@@ -42,7 +42,8 @@ static float audio_envelope_count[4] = {0.0, 0.0, 0.0, 0.0};    // Envelope cycl
 static float audio_cycle[4] = {0.0, 0.0, 0.0, 0.0};             // Note frequency cycle length
 static float audio_envelope_cycle[4] = {0.0, 0.0, 0.0, 0.0};    // Envelope cycle length
 
-static uint8_t audio_length[4] = {0,0,0,0};         // Length values for all channels
+static uint8_t audio_length[4] = {0,0,0,0};         // Current length counter values for all channels
+static uint8_t audio_length_latched[4] = {0,0,0,0};         // Length values for all channels
 static uint8_t audio_playing[4] = {0,0,0,0};        // Playing Y/N flags for all channels
 
 static uint8_t audio_volume[4] = {0,0,0,0};         // Current volume as updated by either initial volume or envelope.
@@ -117,16 +118,16 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
     case MEM_NR11:
     case MEM_NR21:
         audio_sample[cidx] = audio_square_waves[AUDIO_DUTY_CYCLE];
-        audio_length[cidx] = 64 - AUDIO_LENGTH64;
+        audio_length_latched[cidx] = 64 - AUDIO_LENGTH64;
         break;
 
     case MEM_NR41:
-        audio_length[cidx] = 64 - AUDIO_LENGTH64;
+        audio_length_latched[cidx] = 64 - AUDIO_LENGTH64;
         break;
 
     case MEM_NR31:
         // Noise channel note length can be up to 256 ticks
-        audio_length[cidx] = 256 - data;
+        audio_length_latched[cidx] = 256 - data;
         break;
 
 
@@ -208,6 +209,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
             if (cidx == 3)
                 audio_noise_idx = 0;
 
+            audio_length[cidx] = audio_length_latched[cidx];
 
             audio_update_volume(cidx);
             chan->nr4 &= ~AUDIO_TRIGGER_BIT;  // Delete flag so we dont keep triggering
@@ -404,7 +406,7 @@ void audio_length_timer() {
 
         for (int i = 0; i < 4; i++) {
             if (audio_playing[i]) {                                 // Is channel active?
-                if (audio_chans[i].nr4 & AUDIO_CONSECUTIVE) {    // Is it in length mode?
+                if (audio_length[i] && (audio_chans[i].nr4 & AUDIO_CONSECUTIVE)) {    // Is it in length mode?
                     audio_length[i] -= 1;                           // decrease length
 
                     trace(TRACE_AUDIO,"AUDIO: Channel %d length deducted, remain %02x\n", i, audio_length[i]);
