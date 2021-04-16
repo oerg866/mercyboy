@@ -302,8 +302,6 @@ inline void audio_update_volume(int i) {
     }
 
     trace(TRACE_AUDIO, "CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
-
-
 }
 
 inline void audio_update_waveform_data() {
@@ -375,26 +373,20 @@ void audio_envelope_timer() {
                 // If a cycle for this envelope has been reached, reset it and deduct volume.
                 if (audio_envelope_count[i] >= audio_envelope_cycle[i]) {
                     audio_envelope_count[i] -= audio_envelope_cycle[i];
+
                     if (audio_chans[i].nr2 & AUDIO_ENVELOPE_AMPLIFY) {
-
-                        audio_volume[i] = (audio_volume[i] + 1) & 0x0f;
-
-                        trace(TRACE_AUDIO,"AUDIO: CH %d - increasing volume %02x\n", i, audio_volume[i]);
-
-                    }
-                    else {
-
-                        if (audio_volume[i])
-                            audio_volume[i]--;
-                        else {
-                            audio_disable_channel(i);
+                        if (audio_volume[i] < 15) {
+                            audio_volume[i] = audio_volume[i] + 1;
+                            trace(TRACE_AUDIO,"AUDIO: CH %d - increasing volume %02x\n", i, audio_volume[i]);
                         }
-
-                        trace(TRACE_AUDIO,"AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
-
+                    } else {
+                        if (audio_volume[i]) {
+                            audio_volume[i]--;
+                            trace(TRACE_AUDIO,"AUDIO: CH %d - decreasing volume %02x\n", i, audio_volume[i]);
+                        }
                     }
+                    audio_update_volume(i);
                 }
-                audio_update_volume(i);
             }
         }
 
