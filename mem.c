@@ -32,6 +32,13 @@ uint8_t ram_mbc_bank_bits;
 
 uint16_t ram_extram_mask;
 
+void mem_init_float(float* dest, int count) {
+    memset(dest, 0, sizeof(float) * count);
+}
+void mem_init_uint8(uint8_t* dest, int count) {
+    memset(dest, 0, count);
+}
+
 int mem_init(uint8_t *file, int fsize) {
 
     romfile = file;

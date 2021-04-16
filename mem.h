@@ -69,6 +69,9 @@ extern uint8_t ram_ie;         // FFFF
 #define AUDIO_NR51 ram_io[0x25]
 #define AUDIO_NR52 ram_io[0x26]
 
+void mem_init_float(float* dest, int count);
+void mem_init_uint8(uint8_t* dest, int count);
+
 int mem_init(uint8_t *romfile, int fsize);
 uint8_t* mem_addr(uint16_t addr);
 

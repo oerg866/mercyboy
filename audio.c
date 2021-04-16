@@ -541,10 +541,34 @@ inline void noise(SAMPLE *buffer) {
  *                              INIT AND DEINIT FUNCTIONS                           *
  ************************************************************************************/
 
+void mem_init_sample(SAMPLE* dest, int count) {
+    memset(dest, 0, sizeof(SAMPLE) * count);
+}
+
 void audio_init() {
     audio_backend_init();
     audio_256hz_cycle = ((float) audio_sample_rate / 256.0);
     audio_64hz_cycle = ((float) audio_sample_rate / 64.0);
+
+    mem_init_float(audio_counter, 4);           // Note frequency cycle counter for each channel
+    mem_init_float(audio_envelope_count, 4);    // Envelope cycle counter
+    mem_init_float(audio_cycle, 4);             // Note frequency cycle length
+    mem_init_float(audio_envelope_cycle, 4);    // Envelope cycle length
+
+    mem_init_uint8(audio_length, 4);            // Current length counter values for all channels
+    mem_init_uint8(audio_length_latched, 4);    // Length values for all channels
+    mem_init_uint8(audio_playing, 4);           // Playing Y/N flags for all channels
+
+    mem_init_uint8(audio_volume, 4);            // Current volume as updated by either initial volume or envelope.
+    mem_init_uint8(audio_master_volume, 4);     // Master volume for L and R channels.
+    mem_init_uint8(audio_sample, 4);            // Current type of square wave output. (One entry of audio_square_waves gets put here)
+
+    audio_noise_idx = 0;                        // index of current entry in LFSR LUT
+    audio_waveform_idx = 0;                     // index of current sample in waveform data
+
+    mem_init_sample(audio_waveform_output, 2);
+    mem_init_sample(audio_output_l, 4);            // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
+    mem_init_sample(audio_output_r, 4);            // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
     audio_generate_luts();
 }
 
