@@ -27,6 +27,10 @@ int main(int argc, char* argv[])
     trace_init(0, 1, dbg);
 #endif
 
+    if (argc < 2) {
+        printf("Usage: %s rom-image.gb\n", argv[0]);
+        return 1;
+    }
 
     FILE *infile = fopen(argv[1], "rb");
 
@@ -37,7 +41,7 @@ int main(int argc, char* argv[])
 
     uint8_t *romfile = malloc(fsize);
 
-    printf ("File read: %lu\n", fread(romfile, 1, fsize, infile));
+    printf("File read: %lu\n", fread(romfile, 1, fsize, infile));
 
     fclose(infile);
 
@@ -45,7 +49,7 @@ int main(int argc, char* argv[])
     int height = 144;
     int bitdepth = 32;
 
-    printf ("File size: %u bytes.\n", fsize);
+    printf("File size: %u bytes.\n", fsize);
     cpu_init();
     sys_init();
     int result = mem_init(romfile, fsize);
