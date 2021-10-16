@@ -824,13 +824,17 @@ void op_jp_cc(){
     uint16_t old_pc = *pc;
     switch (op_get_cc(op)) {
     case COND_NZ:
-        if (!(*flags & FLAG_Z)) *pc = cpu_read16(*pc+1); break;
+        if (!(*flags & FLAG_Z)) *pc = cpu_read16(*pc+1);
+        break;
     case COND_Z:
-        if (*flags & FLAG_Z) *pc = cpu_read16(*pc+1); break;
+        if (*flags & FLAG_Z) *pc = cpu_read16(*pc+1);
+        break;
     case COND_NC:
-        if (!(*flags & FLAG_C)) *pc = cpu_read16(*pc+1); break;
+        if (!(*flags & FLAG_C)) *pc = cpu_read16(*pc+1);
+        break;
     case COND_C:
-        if (*flags & FLAG_C) *pc = cpu_read16(*pc+1); break;
+        if (*flags & FLAG_C) *pc = cpu_read16(*pc+1);
+        break;
     }
 
     if (old_pc == *pc) ipc(3);
@@ -880,13 +884,17 @@ void op_call_cc(){
     uint16_t old_pc = *pc;
     switch (op_get_cc(op)) {
     case COND_NZ:
-        if (!(*flags & FLAG_Z)) *pc = cpu_read16(*pc+1); break;
+        if (!(*flags & FLAG_Z)) *pc = cpu_read16(*pc+1);
+        break;
     case COND_Z:
-        if (*flags & FLAG_Z) *pc = cpu_read16(*pc+1); break;
+        if (*flags & FLAG_Z) *pc = cpu_read16(*pc+1);
+        break;
     case COND_NC:
-        if (!(*flags & FLAG_C)) *pc = cpu_read16(*pc+1); break;
+        if (!(*flags & FLAG_C)) *pc = cpu_read16(*pc+1);
+        break;
     case COND_C:
-        if (*flags & FLAG_C) *pc = cpu_read16(*pc+1); break;
+        if (*flags & FLAG_C) *pc = cpu_read16(*pc+1);
+        break;
     }
 
     if (old_pc == *pc) {
@@ -918,13 +926,17 @@ void op_ret_cc() {
     uint16_t old_pc = *pc;
     switch (op_get_cc(op)) {
     case COND_NZ:
-        if (!(*flags & FLAG_Z)) *pc = cpu_read16(bs(*sp)); break;
+        if (!(*flags & FLAG_Z)) *pc = cpu_read16(bs(*sp));
+        break;
     case COND_Z:
-        if (*flags & FLAG_Z) *pc = cpu_read16(bs(*sp)); break;
+        if (*flags & FLAG_Z) *pc = cpu_read16(bs(*sp));
+        break;
     case COND_NC:
-        if (!(*flags & FLAG_C)) *pc = cpu_read16(bs(*sp)); break;
+        if (!(*flags & FLAG_C)) *pc = cpu_read16(bs(*sp));
+        break;
     case COND_C:
-        if (*flags & FLAG_C) *pc = cpu_read16(bs(*sp)); break;
+        if (*flags & FLAG_C) *pc = cpu_read16(bs(*sp));
+        break;
     }
 
     if (old_pc == *pc) {
