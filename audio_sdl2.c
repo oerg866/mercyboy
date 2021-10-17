@@ -25,6 +25,7 @@ void audio_sdl_callback(void *udata, uint8_t *stream, int len) {
        len:     The length (in bytes) of the audio buffer
     */
 
+    (void) udata; // we don't use this parameter
     audio_process_chunk((SAMPLE*) stream, len / (sizeof(SAMPLE) * audio_amount_channels));
 
 }
