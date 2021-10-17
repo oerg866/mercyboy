@@ -62,13 +62,15 @@ void sys_init() {
 
 void sys_dma_cycles(int cycles) {
 
+    int32_t i;
+
     // Process dma cycles, one byte per cycle
 
     if (sys_dma_busy) {
 
         trace(TRACE_SYS, "DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
 
-        for (int i = 0; i < cycles; i++) {
+        for (i = 0; i < cycles; i++) {
             oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
             if (++sys_dma_counter == SYS_DMA_LENGTH)
                 break;
@@ -151,6 +153,7 @@ void sys_handle_system() {
 }
 
 void sys_handle_joypad() {
+    int32_t i;
 
     // Call backend function for this
 
@@ -158,7 +161,7 @@ void sys_handle_joypad() {
 
     // Interrupt on high-low transitions
 
-    for (int i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
         if (((sys_buttons_old >> i) & 0x01) && !(((sys_buttons_all >> i) & 0x01))) {
             // Req a joypad interupt
             sys_interrupt_req(INT_JOYPAD);

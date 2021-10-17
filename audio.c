@@ -360,13 +360,15 @@ void audio_sweep_timer() {
 }
 
 void audio_envelope_timer() {
+    int32_t i;
+
     audio_64hz_timer += 1.0;
 
     if (audio_64hz_timer >= audio_64hz_cycle) {
 
         audio_64hz_timer -= audio_64hz_cycle;
 
-        for (int i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) {
 
             // Don't do envelopes if the step is 0 or we're processing channel 3 (waveform)
 
@@ -397,6 +399,8 @@ void audio_envelope_timer() {
 }
 
 void audio_length_timer() {
+    int32_t i;
+
     audio_256hz_timer += 1.0;
     if (audio_256hz_timer >= audio_256hz_cycle) {
         // 256 Hz Timer triggered, reset it and deduct lengths.
@@ -404,7 +408,7 @@ void audio_length_timer() {
 
         // Process lengths for each channel
 
-        for (int i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) {
             if (audio_playing[i]) {                                 // Is channel active?
                 if (audio_length[i] && (audio_chans[i].nr4 & AUDIO_CONSECUTIVE)) {    // Is it in length mode?
                     audio_length[i] -= 1;                           // decrease length
@@ -427,7 +431,9 @@ void audio_length_timer() {
  *                             AUDIO GENERATOR FUNCTIONS                            *
  ************************************************************************************/
 
-void audio_process_chunk(SAMPLE *stream, int len) {
+void audio_process_chunk(SAMPLE *stream, int32_t len) {
+    int32_t i;
+
     // This function should be called whenever a chunk of audio needs to be processed.
     // len is the length in SAMPLEs that is requested.
     // We use the global variable audio_sample_rate in some calculations so make sure this is correctly set.
@@ -444,7 +450,7 @@ void audio_process_chunk(SAMPLE *stream, int len) {
 
     len *= audio_amount_channels; // Stereo (two channels), so double the length
 
-    for (int i = 0; i < len; i += audio_amount_channels) {
+    for (i = 0; i < len; i += audio_amount_channels) {
         // Process length and envelope timers.
         audio_length_timer();
         audio_envelope_timer();
@@ -583,6 +589,8 @@ void audio_deinit() {
 
 void audio_generate_luts() {
 
+    int32_t i;
+
     // Generate LUTs for the LFSR.
 
     uint8_t lfsr7 = 0x7F;
@@ -593,13 +601,13 @@ void audio_generate_luts() {
     // Output = Bit 0
 
     // 7-Stage LFSR
-    for (long i = 0; i < 128; i++) {
+    for (i = 0; i < 128; i++) {
        audio_noise_lut7[i] = (lfsr7 & 1);
        lfsr7 = (lfsr7 >> 1) | ((((lfsr7 >> 1) & 1) ^ (lfsr7 & 1)) << 6);
     }
 
     // 15-Stage LFSR
-    for (long i = 0; i < 32768; i++) {
+    for (i = 0; i < 32768; i++) {
        audio_noise_lut15[i] = (uint8_t) (lfsr15 & 1);
        lfsr15 = (lfsr15 >> 1) | ((((lfsr15 >> 1) & 1) ^ (lfsr15 & 1)) << 14);
     }

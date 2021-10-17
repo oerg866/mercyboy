@@ -74,7 +74,8 @@ inline void video_backend_update_palette(uint8_t pal_offset, uint8_t reg) {
 }
 
 void video_backend_draw_line(int line, uint8_t *linebuf) {
-    for (int i = 0; i < 160; i++) {
+    int16_t i;
+    for (i = 0; i < 160; i++) {
         framebuffer_pixels[i + 160*line] = pal_rgb[linebuf[i]];
     }
 }

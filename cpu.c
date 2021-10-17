@@ -512,8 +512,10 @@ void cycles(uint16_t n) {
 
 uint16_t process_interrupts() {
 
+    uint16_t i;
+    
     if (cpu_ie || cpu_halted) {
-        for (uint16_t i = 0; i < 5; i++) {
+        for (i = 0; i < 5; i++) {
             if ((ram_ie & SYS_IF) & (1 << i)) {
                 // if an int is enabled and pending, service it
 

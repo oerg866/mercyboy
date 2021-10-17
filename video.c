@@ -223,9 +223,17 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
     // tiles_type: defines if tiles drawn are BG, Sprite or Window tiles.
     // sprites_attr: Sprite attributes (Xflip, yflip, prio, etc.)
 
+    int32_t i;
+
     int16_t tile_num;
     uint8_t p1, p2; // tile bytes 1 and 2
     uint8_t priority = !(sprite_attr & SPRITE_ATTR_PRIO); // 0 = forced priority, 1 = behind bg
+
+    // Palette offset, BGP by default. Will be set for sprites further down.
+
+    uint8_t pal_offset;
+
+    uint8_t newpixel;
 
     // Respect sprite VERTICAL FLIP attribute
 
@@ -243,10 +251,6 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
     }
 
     yoffset = yoffset << 1;
-
-    // Palette offset, BGP by default. Will be set for sprites further down.
-
-    uint8_t pal_offset;
 
     // Get tile from map
 
@@ -280,9 +284,7 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         p2 = video_flip_tile_byte(p2);
     }
 
-    uint8_t newpixel;
-
-    for (int i = xstart; i < count; i++) {
+    for (i = xstart; i < count; i++) {
 
         newpixel =  ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
                 |   ((p1 & (1 << (7 - i))) >> (7 - i)));
@@ -304,10 +306,12 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
 void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t tiles_type) {
 
-    // Get pixel in tile to start drawing from and draw first tile
+    int h;
 
     int xrest;
     int yoffset;
+
+    // Get pixel in tile to start drawing from and draw first tile
 
     if (tiles_type == TILES_BG) {
         // Respect Scroll X and Y for BG tiles.
@@ -342,7 +346,7 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     // draw all the full tiles
 
-    for (int h = 0; h < fulltiles; h++) {
+    for (h = 0; h < fulltiles; h++) {
 
         // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
 
