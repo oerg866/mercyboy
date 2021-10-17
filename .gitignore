@@ -1,0 +1,31 @@
+# Gameboy stuff
+*.gb
+*.sav
+*.zip
+
+# IDA stuff
+*.id0
+*.id1
+*.i64
+*.nam
+*.til
+*.sna
+
+# outputs
+*.exe
+*.dll
+bin
+
+# QTCreator
+*.pro.user
+
+# VSCode
+.vscode
+
+# Mac builds
+.DS_Store
+._*
+
+# Windows stuff
+Thumbs.db
+desktop.ini
