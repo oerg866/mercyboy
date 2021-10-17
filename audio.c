@@ -71,7 +71,7 @@ uint8_t audio_handle_read(uint16_t addr) {
 
     uint8_t data = ram_io[addr - 0xFF10];
 
-    uint8_t cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
+    int cidx = (addr - 0xFF10) / 5; // 5 registers per channel, one dummy
     trace(TRACE_AUDIO, "Handle read, addr %04x, cidx %d, data %02x\n", addr, cidx, data);
 
     switch(addr) {
