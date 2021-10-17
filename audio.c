@@ -359,11 +359,11 @@ void audio_sweep_timer() {
     }
 }
 
-void audio_envelope_timer() {
+void audio_envelope_timer() {    
     int32_t i;
 
     audio_64hz_timer += 1.0;
-
+    
     if (audio_64hz_timer >= audio_64hz_cycle) {
 
         audio_64hz_timer -= audio_64hz_cycle;
@@ -468,7 +468,7 @@ void audio_process_chunk(SAMPLE *stream, int32_t len) {
 
 }
 
-inline void square(unsigned int i, SAMPLE *buffer) {
+void square(unsigned int i, SAMPLE *buffer) {
     if (audio_playing[i]) {
         audio_counter[i] += 1.0;
         if (audio_counter[i] >= audio_cycle[i]) {
@@ -488,7 +488,7 @@ inline void square(unsigned int i, SAMPLE *buffer) {
     }
 }
 
-inline void waveform(SAMPLE *buffer) {
+void waveform(SAMPLE *buffer) {
 
     if (audio_playing[2]) {
         audio_counter[2] += 1.0;
@@ -509,7 +509,7 @@ inline void waveform(SAMPLE *buffer) {
 
 }
 
-inline void noise(SAMPLE *buffer) {
+void noise(SAMPLE *buffer) {
 
     if (audio_playing[3]) {
 
