@@ -392,7 +392,7 @@ void video_draw_sprites() {
 
         // in 8x8 mode, a tile is visible if current line - Y position - 16 is less than 8 (or 16 in 16 mode)
         // and it is also visible if X position != 0 and X position < 168
-        if (((unsigned) (yoffset) < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
+        if ((yoffset >= 0) && (yoffset < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
 
             // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
 
