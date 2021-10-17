@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 
     uint8_t *romfile = malloc(fsize);
 
-    printf("File read: %lu\n", fread(romfile, 1, fsize, infile));
+    printf("File read: %lu\n", (unsigned long) fread(romfile, 1, fsize, infile));
 
     fclose(infile);
 
