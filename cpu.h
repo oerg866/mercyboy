@@ -45,6 +45,11 @@
 #define bs bswap_16
 #include <byteswap.h>
 
+#elif defined(__APPLE__)
+
+#include <arpa/inet.h>
+#define bs ntohs
+
 #endif
 
 extern uint8_t      regs8[];

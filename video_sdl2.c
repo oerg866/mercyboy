@@ -20,7 +20,7 @@ SDL_Surface * window_surface = NULL;
 
 uint32_t *framebuffer_pixels = NULL;
 uint32_t pal_rgb[4*3]; // BGP, OBP1 and OBP2 in RGB32 format
-const uint32_t bw_palette[4] = {0x00ffffff,0x00aaaaaa,0x00666666,0x00000000};
+const uint32_t bw_palette[4] = {0xffffffff,0xffaaaaaa,0xff555555,0xff000000};
 
 uint8_t video_backend_status;
 
