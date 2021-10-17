@@ -1,3 +1,5 @@
+#if defined(DEBUG)
+
 #include "trace.h"
 
 #include <stdio.h>
@@ -21,23 +23,17 @@ const char *trace_strings[9] = {
 };
 
 void trace_init(uint8_t enabled, uint8_t print, FILE *file) {
-#ifdef DEBUG
     trace_file = file;
     trace_enabled = enabled;
     trace_print = print;
-#endif
 }
 
 void trace_deinit() {
-#ifdef DEBUG
     if (trace_file)
         fclose(trace_file);
-#endif
 }
 
 void trace(uint8_t trace_lvl, char* fmt, ...) {
-#ifdef DEBUG
-
     if (trace_enabled & trace_lvl) {
         va_list ap;
         va_start(ap, fmt);
@@ -56,6 +52,6 @@ void trace(uint8_t trace_lvl, char* fmt, ...) {
         }
         va_end(ap);
     }
-
-#endif
 }
+
+#endif // defined(DEBUG)

@@ -15,7 +15,12 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#if defined(DEBUG)
 void trace_init(uint8_t enabled, uint8_t print, FILE *file);
 void trace(uint8_t trace_lvl, char* fmt, ...);
+#else 
+#define trace_init(...) {}
+#define trace(...) {}
+#endif
 
 #endif // TRACE_H
