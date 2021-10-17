@@ -157,22 +157,22 @@ int video_backend_init(int width, int height, int bitdepth) {
 
 
 
-void video_backend_update_palette_16(uint8_t pal_offset, uint8_t reg) {
-    pal_rgb_16[0+pal_offset] = bw_palette_16[pal_int[0+pal_offset]];
-    pal_rgb_16[1+pal_offset] = bw_palette_16[pal_int[1+pal_offset]];
-    pal_rgb_16[2+pal_offset] = bw_palette_16[pal_int[2+pal_offset]];
-    pal_rgb_16[3+pal_offset] = bw_palette_16[pal_int[3+pal_offset]];
+void video_backend_update_palette_16(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4) {
+    pal_rgb_16[0+pal_offset] = bw_palette_16[color1];
+    pal_rgb_16[1+pal_offset] = bw_palette_16[color2];
+    pal_rgb_16[2+pal_offset] = bw_palette_16[color3];
+    pal_rgb_16[3+pal_offset] = bw_palette_16[color4];
 }
 
-void video_backend_update_palette_32(uint8_t pal_offset, uint8_t reg) {
-    pal_rgb_32[0+pal_offset] = bw_palette_32[pal_int[0+pal_offset]];
-    pal_rgb_32[1+pal_offset] = bw_palette_32[pal_int[1+pal_offset]];
-    pal_rgb_32[2+pal_offset] = bw_palette_32[pal_int[2+pal_offset]];
-    pal_rgb_32[3+pal_offset] = bw_palette_32[pal_int[3+pal_offset]];
+void video_backend_update_palette_32(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4) {
+    pal_rgb_32[0+pal_offset] = bw_palette_32[color1];
+    pal_rgb_32[1+pal_offset] = bw_palette_32[color2];
+    pal_rgb_32[2+pal_offset] = bw_palette_32[color3];
+    pal_rgb_32[3+pal_offset] = bw_palette_32[color4];
 }
 
-inline void video_backend_update_palette(uint8_t pal_offset, uint8_t reg) {
-    (*video_backend_update_palette_bpp) (pal_offset, reg);
+inline void video_backend_update_palette(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4) {
+    (*video_backend_update_palette_bpp) (pal_offset, color1, color2, color3, color4);
 }
 
 void video_backend_draw_line_16(int line, uint8_t *linebuf) {

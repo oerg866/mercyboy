@@ -67,8 +67,6 @@
 #define VID_BACKEND_STATUS_EXIT     0
 #define VID_BACKEND_STATUS_RUNNING  1
 
-extern uint8_t pal_int[4*3];
-
 void video_reset_lcd();
 void video_init();
 uint8_t video_get_line();
@@ -82,7 +80,7 @@ void video_update_framebuffer();
 // Backend functions
 
 int video_backend_init(int width, int height, int bitdepth);
-void video_backend_update_palette(uint8_t pal_offset, uint8_t reg);
+void video_backend_update_palette(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4);
 void video_backend_draw_line(int line, uint8_t *linebuf);
 void video_backend_update_framebuffer();
 void video_backend_handle_events();

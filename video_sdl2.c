@@ -66,11 +66,11 @@ int video_backend_init(int width, int height, int bitdepth) {
 }
 
 
-inline void video_backend_update_palette(uint8_t pal_offset, uint8_t reg) {
-    pal_rgb[0+pal_offset] = bw_palette[pal_int[0+pal_offset]];
-    pal_rgb[1+pal_offset] = bw_palette[pal_int[1+pal_offset]];
-    pal_rgb[2+pal_offset] = bw_palette[pal_int[2+pal_offset]];
-    pal_rgb[3+pal_offset] = bw_palette[pal_int[3+pal_offset]];
+inline void video_backend_update_palette(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4) {
+    pal_rgb[0+pal_offset] = bw_palette[color1];
+    pal_rgb[1+pal_offset] = bw_palette[color2];
+    pal_rgb[2+pal_offset] = bw_palette[color3];
+    pal_rgb[3+pal_offset] = bw_palette[color4];
 }
 
 void video_backend_draw_line(int line, uint8_t *linebuf) {
