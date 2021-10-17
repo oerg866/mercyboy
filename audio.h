@@ -73,6 +73,9 @@
 #define SAMPLE_MAX INT16_MAX
 #endif
 
+typedef int16_t SAMPLE;         // Internally we process audio as PCM S16 LE, the backend must handle conversion if necessary
+#define SAMPLE_MAX INT16_MAX
+
 struct audio_channel {
     uint8_t nr0,nr1,nr2,nr3,nr4;
 };
