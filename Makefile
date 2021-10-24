@@ -2,27 +2,27 @@
 # Select backends by setting the variables BACKEND_VIDEO, BACKEND_AUDIO and BACKEND_INPUT.
 # Select timing options by setting the variable TIMING.
 # Possible values:
-# BACKEND_VIDEO: sdl (default), gdi
-# BACKEND_AUDIO: sdl (default)
-# BACKEND_INPUT: sdl (default), win32
+# BACKEND_VIDEO: sdl2 (default), gdi
+# BACKEND_AUDIO: sdl2 (default)
+# BACKEND_INPUT: sdl2 (default), win32
 # TIMING: audio (default), delay
 
 # Handle default values
 ifeq ($(BACKEND_VIDEO),)
-	BACKEND_VIDEO = sdl
+	BACKEND_VIDEO = sdl2
 endif
 ifeq ($(BACKEND_AUDIO),)
-	BACKEND_AUDIO = sdl
+	BACKEND_AUDIO = sdl2
 endif
 ifeq ($(BACKEND_INPUT),)
-	BACKEND_INPUT = sdl
+	BACKEND_INPUT = sdl2
 endif
 ifeq ($(TIMING),)
 	TIMING = audio
 endif
 
 # Remember which libraries need to be linked.
-NEED_SDL = no
+NEED_SDL2 = no
 NEED_GDI = no
 NEED_WIN32 = no
 
@@ -30,9 +30,9 @@ CFLAGS = -Wall -Wextra -Os
 LIBS = -lm
 
 # Video backend
-ifeq ($(BACKEND_VIDEO),sdl)
+ifeq ($(BACKEND_VIDEO),sdl2)
 	CFLAGS += -DVIDEO_SDL2
-	NEED_SDL = yes
+	NEED_SDL2 = yes
 endif
 ifeq ($(BACKEND_VIDEO),gdi)
 	CFLAGS += -DVIDEO_GDI
@@ -40,15 +40,15 @@ ifeq ($(BACKEND_VIDEO),gdi)
 endif
 
 # Audio backend
-ifeq ($(BACKEND_AUDIO),sdl)
+ifeq ($(BACKEND_AUDIO),sdl2)
 	CFLAGS += -DAUDIO_SDL2
-	NEED_SDL = yes
+	NEED_SDL2 = yes
 endif
 
 # Input backend
-ifeq ($(BACKEND_INPUT),sdl)
+ifeq ($(BACKEND_INPUT),sdl2)
 	CFLAGS += -DINPUT_SDL2
-	NEED_SDL = yes
+	NEED_SDL2 = yes
 endif
 ifeq ($(BACKEND_INPUT),win32)
 	CFLAGS += -DINPUT_WIN32
@@ -65,7 +65,7 @@ ifeq ($(MAKE),mingw32-make)
 	CC = gcc
 endif
 
-ifeq ($(NEED_SDL),yes)
+ifeq ($(NEED_SDL2),yes)
 	ifeq ($(OS),Windows_NT)
 		LIBS += -lmingw32 -lSDL2main -lSDL2
 	else
