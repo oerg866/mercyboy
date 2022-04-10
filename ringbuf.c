@@ -77,10 +77,12 @@ void ringbuffer_insert_bytes(ringbuffer *rb, uint8_t* src, uint32_t len) {
     // Win16 and early Win32 doesn't seem to have any concept of concurrency so
     // this is the best I could come up with
 
+#if !defined(BENCHMARK)
     while (is_blocked) {
         is_blocked = rb->is_blocked[rb->w_buf];
         yield();
     }
+#endif
 
     while (len) {
 
@@ -98,11 +100,12 @@ void ringbuffer_insert_bytes(ringbuffer *rb, uint8_t* src, uint32_t len) {
             // Primitive locking mechanism for writes to unreturned buffers.
             is_blocked = 1;
 
+#if !defined(BENCHMARK)
             while (is_blocked) {
                 is_blocked = rb->is_blocked[rb->w_buf];
                 yield();
             }
-
+#endif
         }
 
         len -= bytes_to_write;

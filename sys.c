@@ -88,12 +88,14 @@ void sys_run() {
         audio_render_frame();
 
         // Time the vsync, can be tricky
+
+#if !defined(BENCHMARK)
         if (video_get_config()->use_audio_timing) {
             audio_wait_for_vsync();
         } else {
             sys_manual_vsync();
         }
-
+#endif
         sys_handle_system();
         sys_handle_joypad();
 
