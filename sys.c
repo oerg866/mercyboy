@@ -89,7 +89,7 @@ void sys_run() {
 
         // Time the vsync, can be tricky
         if (video_get_config()->use_audio_timing) {
-//            audio_wait_for_vsync();
+            audio_wait_for_vsync();
         } else {
             sys_manual_vsync();
         }

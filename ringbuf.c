@@ -98,12 +98,10 @@ void ringbuffer_insert_bytes(ringbuffer *rb, uint8_t* src, uint32_t len) {
             // Primitive locking mechanism for writes to unreturned buffers.
             is_blocked = 1;
 
-            /* It seems it is safe without this but i'll uncomment if it causes problems
             while (is_blocked) {
                 is_blocked = rb->is_blocked[rb->w_buf];
                 yield();
             }
-            */
 
         }
 

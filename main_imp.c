@@ -55,9 +55,9 @@ int main_default (int argc, char *argv[])
 
     // Initialize backends
 
-    s_audio_backend = get_audio_backend("a_waveout");
-    s_video_backend = get_video_backend("v_gdi");
-    s_input_backend = get_input_backend("i_win32");
+    s_audio_backend = get_audio_backend(NULL);
+    s_video_backend = get_video_backend(NULL);
+    s_input_backend = get_input_backend(NULL);
 
 
     sys_init(s_input_backend);

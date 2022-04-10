@@ -18,15 +18,18 @@ USE_SDL2 := 1
 ifeq ($(TARGET),WIN9X)
 	EXECUTABLE = mercyboy.exe
 	USE_SDL2 = 0
+	DELETE = del
 	LIBS += $(LIBS_WIN32)
 	DEFS += $(DEFS_WIN32)
 else ifeq ($(OS),Windows_NT) # Default if we're on modernish windows
 	EXECUTABLE = mercyboy.exe
 	LIBS_SDL2 = -lSDL2main -lSDL2
+	DELETE = del
 	LIBS += $(LIBS_WIN32)
 	DEFS += $(DEFS_WIN32)
 else
 	EXECUTABLE = mercyboy
+	DELETE = rm -f
 	CFLAGS_SDL2 = $(shell sdl2-config --cflags)
 	LIBS_SDL2 = $(shell sdl2-config --libs)
 endif
@@ -49,12 +52,12 @@ HEADERS = $(wildcard include/*.h) $(wildcard audio/*.h) $(wildcard input/*.h) $(
 
 INCLUDES = -Iinclude -Ibackends
 
-all: $(EXECUTABLE)
+all: clean $(EXECUTABLE)
 
 $(EXECUTABLE): $(SOURCES) $(HEADERS) Makefile
 	$(CC) $(CFLAGS) $(DEFS) -o $(EXECUTABLE) $(INCLUDES) $(SOURCES) $(LIBS)
 
 clean:
-	rm -f $(EXECUTABLE)
+	$(DELETE) $(EXECUTABLE)
 
 .PHONY: all clean

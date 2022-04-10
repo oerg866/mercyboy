@@ -11,6 +11,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 
+#include "trace.h"
 #include "video.h"
 
 static SDL_Surface * framebuffer = NULL;
