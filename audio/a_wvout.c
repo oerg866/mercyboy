@@ -41,7 +41,7 @@ void a_waveout_cfg_to_waveformat(audio_config *cfg, WAVEFORMAT_T *waveformat) {
 #endif
 }
 
-void CALLBACK a_waveout_callback (HWAVEOUT hwo, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2) {
+void CALLBACK a_waveout_callback (HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
     WAVEHDR *header;
     unsigned bufferNum;
 
@@ -62,6 +62,8 @@ int a_waveout_init(audio_config *cfg) {
     uint32_t ringbuffer_slice_size;
     uint32_t i;
 
+    memset(&waveformat, 0, sizeof(WAVEFORMAT_T));
+
     if (cfg->buffer_size < BUFFER_LENGTH_MINIMUM) {
         cfg->buffer_size = BUFFER_LENGTH_MINIMUM;
         print_msg("WARNING: Buffer size extremely low, increasing\n");
@@ -78,7 +80,7 @@ int a_waveout_init(audio_config *cfg) {
     memset(s_wavehdrs, 0, BUFFER_COUNT * sizeof(WAVEHDR));
 
     // Open the device
-    ret = waveOutOpen(&s_waveout_handle, WAVE_MAPPER, &waveformat, (DWORD) a_waveout_callback, 0, CALLBACK_FUNCTION);
+    ret = waveOutOpen(&s_waveout_handle, WAVE_MAPPER, &waveformat, (DWORD_PTR) a_waveout_callback, 0, CALLBACK_FUNCTION);
     print_msg("MMRESULT = %d\n", ret);
 
     // Initialize and prepare headers

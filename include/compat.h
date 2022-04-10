@@ -173,3 +173,9 @@ inline uint16_t bs (uint16_t val) {
 #define _lock volatile uint8_t
 
 #endif
+
+/* DWORD_PTR is iffy because it is 8 bytes on 64-bit, older MSVCs don't have this type actually */
+
+#if (defined(_MSC_VER) && (!defined(DWORD_PTR)))
+#define DWORD_PTR DWORD
+#endif
