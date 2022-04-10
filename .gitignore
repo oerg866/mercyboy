@@ -14,6 +14,7 @@
 # outputs
 *.exe
 *.dll
+*.obj
 bin
 
 # QTCreator
@@ -29,3 +30,9 @@ bin
 # Windows stuff
 Thumbs.db
 desktop.ini
+
+MB_REL
+MB_DEBUG
+build
+Debug
+Release
