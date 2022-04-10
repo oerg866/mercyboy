@@ -82,6 +82,7 @@ int main_default (int argc, char *argv[])
     sys_deinit();
     audio_deinit();
     video_deinit();
+    mem_deinit();
 
 #ifdef USING_SDL
     SDL_Quit();

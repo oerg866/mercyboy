@@ -69,15 +69,27 @@ extern uint8_t ram_ie;         // FFFF
 #define AUDIO_NR51 ram_io[0x25]
 #define AUDIO_NR52 ram_io[0x26]
 
+
+
 void mem_init_float(float* dest, int count);
 void mem_init_uint8(uint8_t* dest, int count);
 
 int mem_init(uint8_t *romfile, int fsize);
+void mem_deinit();
 uint8_t* mem_addr(uint16_t addr);
 
 // These force a read without DMA checks. Used by DMA (so we don't block transfers blocked by DMA for the DMA...)
 
-uint8_t cpu_read8_force(uint16_t addr);
+#define cpu_read8_force(addr) mem_reads[addr](addr)
+
 uint16_t cpu_read16_force(uint16_t addr);
+
+// Read / Write function prototypes.
+
+typedef uint8_t (*mem_read_func) (uint16_t addr);
+typedef void (*mem_write_func) (uint16_t addr, uint8_t data);
+
+extern mem_read_func *mem_reads;
+extern mem_write_func *mem_writes;
 
 #endif // MEM_H

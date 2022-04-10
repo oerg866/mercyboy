@@ -33,6 +33,26 @@ uint8_t ram_mbc_bank_bits;
 
 uint16_t ram_extram_mask;
 
+// Function pointer arrays for read and write handlers (yes, 65536 of each... fff)
+mem_read_func *mem_reads;
+mem_write_func *mem_writes;
+
+uint8_t mem_read_rom1(uint16_t addr) { return rom1[addr]; }
+uint8_t mem_read_rom2(uint16_t addr) { return rom2[addr-0x4000]; }
+uint8_t mem_read_vram(uint16_t addr) { return vram[addr-0x8000]; }
+uint8_t mem_read_mbc1_ram(uint16_t addr) { if (sys_extmem_en) { return ram2[addr-0xa000]; } return 0; }
+uint8_t mem_read_mbc2_ram(uint16_t addr) { if (sys_extmem_en) { return ram2[addr-0xa000]; } return 0; }
+uint8_t mem_read_dummy(uint16_t addr) { return 0; }
+uint8_t mem_read_ram(uint16_t addr) { return ram1[addr-0xc000]; }
+uint8_t mem_read_ram_echo(uint16_t addr) { return ram1[addr-0xe000]; }
+uint8_t mem_read_oam(uint16_t addr) { return oam[addr-0xfe00]; }
+uint8_t mem_read_ram_uio2(uint16_t addr) { return ram_uio2[addr-0xfea0]; }
+uint8_t mem_read_joypad(uint16_t addr) { return sys_read_joypad(); }
+uint8_t mem_read_vline(uint16_t addr) { return video_get_line(); }
+uint8_t mem_read_io(uint16_t addr) { return ram_io[addr-0xff00]; }
+uint8_t mem_read_ram_int(uint16_t addr) { return ram_int[addr-0xff80]; }
+uint8_t mem_read_ie(uint16_t addr) { return ram_ie; }
+
 void mem_init_float(float* dest, int count) {
     memset(dest, 0, sizeof(float) * count);
 }
@@ -41,8 +61,8 @@ void mem_init_uint8(uint8_t* dest, int count) {
 }
 
 int mem_init(uint8_t *file, int fsize) {
-
     char title[0x0F];
+    unsigned long i;
 
 	romfile = file;
     romsize = fsize;
@@ -134,6 +154,41 @@ int mem_init(uint8_t *file, int fsize) {
 
     ram_mbc_bank_bits = 0;
 
+
+    // Set up function pointers for memory reads and writes
+    mem_reads = alloc_mem(sizeof(mem_read_func) * 0x10000);
+
+#define fill_mem_ptr_range(arr, from, to, value) for(i=from;i<=to;++i) arr[i]=value
+
+    fill_mem_ptr_range(mem_reads, 0x0000, 0x3fff, mem_read_rom1);
+    fill_mem_ptr_range(mem_reads, 0x4000, 0x7fff, mem_read_rom2);
+    fill_mem_ptr_range(mem_reads, 0x8000, 0x9fff, mem_read_vram);
+
+    // Setup handling of MBC ext memory regions
+    fill_mem_ptr_range(mem_reads, 0xa000, 0xbfff, mem_read_dummy);
+
+    if (sys_ismbc2) {
+        fill_mem_ptr_range(mem_reads, 0xa000, 0xa1ff, mem_read_mbc2_ram);
+    } else if (sys_ismbc1) {
+        fill_mem_ptr_range(mem_reads, 0xa000, 0xbfff, mem_read_mbc1_ram);
+    }
+
+
+    fill_mem_ptr_range(mem_reads, 0xa200, 0xbfff, mem_read_dummy);
+    fill_mem_ptr_range(mem_reads, 0xc000, 0xdfff, mem_read_ram);
+    fill_mem_ptr_range(mem_reads, 0xe000, 0xfdff, mem_read_ram_echo);
+    fill_mem_ptr_range(mem_reads, 0xfe00, 0xfe9f, mem_read_oam);
+    fill_mem_ptr_range(mem_reads, 0xfea0, 0xfeff, mem_read_ram_uio2);
+    fill_mem_ptr_range(mem_reads, 0xff00, 0xff7f, mem_read_io);
+    fill_mem_ptr_range(mem_reads, 0xff80, 0xfffe, mem_read_ram_int);
+
+    // Some special cases...
+    mem_reads[MEM_JOYPAD] = mem_read_joypad;
+    mem_reads[MEM_LINE] = mem_read_vline;
+    mem_reads[0xffff] = mem_read_ie;
+
+
+
     return 0;
 }
 
@@ -201,7 +256,7 @@ void mem_update_banks_mbc1() {
     }
 
 }
-
+/*
 uint8_t cpu_read8_force(uint16_t addr) {
 
     if          (addr < 0x4000) {
@@ -230,9 +285,7 @@ uint8_t cpu_read8_force(uint16_t addr) {
     } else if   (addr < 0xFF80) {
 
 
-        /*
-         *  HANDLE JOYPAD
-         */
+         //  HANDLE JOYPAD
 
         if        (addr == MEM_JOYPAD) {
             return sys_read_joypad();
@@ -251,6 +304,7 @@ uint8_t cpu_read8_force(uint16_t addr) {
     return 0;
 
 }
+*/
 
 uint8_t cpu_read8(uint16_t addr) {
 
@@ -449,4 +503,9 @@ void cpu_write16(uint16_t addr, uint16_t data) {
     cpu_write8(addr, data & 0xFF);
     cpu_write8(addr+1, data >> 8);
 
+}
+
+void mem_deinit() {
+    free(mem_reads);
+    free(mem_writes);
 }
