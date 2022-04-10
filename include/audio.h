@@ -1,19 +1,13 @@
-#pragma once
-
 #ifndef AUDIO_H
 #define AUDIO_H
 
-#include <stdint.h>
+#include "compat.h"
+
+#include "backends.h"
+
+#include "ringbuf.h"
+
 #include "mem.h"
-
-///////////////////////////////
-// Audio backends
-
-#ifdef AUDIO_SDL2
-#include "audio_sdl2.h"
-#endif
-
-///////////////////////////////
 
 #define AUDIO_NR10    ram_io[0x10]
 #define AUDIO_NR11    ram_io[0x11]
@@ -68,32 +62,37 @@
 
 #define MASTER_CLOCK 4194304
 
-#ifdef AUDIO_NONE
-#define SAMPLE int16_t
-#define SAMPLE_MAX INT16_MAX
-#endif
+#define AUDIO_WRITE_SAMPLE_TO_STREAM(samp) \
+    if (bytes_per_sample == 1) { \
+        *stream = (samp >> 8); \
+    } else { \
+        *((int16_t*) stream) = samp;\
+    } \
+    stream += bytes_per_sample; \
 
-typedef int16_t SAMPLE;         // Internally we process audio as PCM S16 LE, the backend must handle conversion if necessary
-#define SAMPLE_MAX INT16_MAX
+#define AUDIO_BUFFER_COUNT 16
 
 struct audio_channel {
     uint8_t nr0,nr1,nr2,nr3,nr4;
 };
-
-extern uint32_t audio_sample_rate;
-extern uint32_t audio_amount_channels;
-extern volatile float audio_timer;
 
 // I/O RW functions
 
 void audio_handle_write(uint16_t addr, uint16_t data);
 uint8_t audio_handle_read(uint16_t addr);
 
+// Timing functions
+
+void audio_advance_timing(float seconds_per_buffer);
+void audio_wait_for_vsync();
+
 // Audio chunk generator functions
 
-void square(unsigned int i, SAMPLE *buffer);
-void noise(SAMPLE *buffer);
-void waveform(SAMPLE *buffer);
+void audio_render_frame();
+
+void square(unsigned int i, int16_t *left, int16_t *right);
+void noise(int16_t *left, int16_t *right);
+void waveform(int16_t *left, int16_t *right);
 
 // Channel operations
 
@@ -105,14 +104,10 @@ void audio_enable_channel(int i);
 void audio_update_waveform_data();
 void audio_update_volume(int i);
 
-extern void audio_process_chunk(SAMPLE *stream, int len);
-
 // Init & deinit functions
 
-void audio_init();
-void audio_backend_init();
+void audio_init(audio_backend_t *backend, audio_config *config);
 void audio_deinit();
-void audio_backend_deinit();
 
 void audio_generate_luts();
 

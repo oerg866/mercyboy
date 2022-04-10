@@ -3,7 +3,8 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include <stdint.h>
+#include "compat.h"
+#include "backends.h"
 
 #define LCD_WIDTH           160
 #define LCD_HEIGHT          144
@@ -64,33 +65,19 @@
 #define PAL_OFFSET_OBP0     4
 #define PAL_OFFSET_OBP1     8
 
-#define VID_BACKEND_STATUS_EXIT     0
-#define VID_BACKEND_STATUS_RUNNING  1
 
 void video_reset_lcd();
-void video_init();
+void video_init(video_backend_t *backend, video_config *cfg);
+void video_deinit();
+video_config *video_get_config();
 uint8_t video_get_line();
 void video_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_cycles(int cycles);
 uint8_t video_flip_tile_byte(uint8_t src);
 void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr);
 void video_draw_line();
-void video_update_framebuffer();
-
-// Backend functions
-
-int video_backend_init(int width, int height, int bitdepth);
-void video_backend_update_palette(uint8_t pal_offset, uint8_t color1, uint8_t color2, uint8_t color3, uint8_t color4);
-void video_backend_draw_line(int line, uint8_t *linebuf);
-void video_backend_update_framebuffer();
-void video_backend_handle_events();
-uint8_t video_backend_get_status();
-
-struct spritedata {
-    uint8_t y;
-    uint8_t x;
-    uint8_t tile;
-    uint8_t attr;
-};
+void video_ack_frame_done_and_draw();
+video_backend_status video_handle_events();
+int video_is_frame_done();
 
 #endif

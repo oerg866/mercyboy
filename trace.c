@@ -34,6 +34,7 @@ void trace_deinit() {
 }
 
 void trace(uint8_t trace_lvl, char* fmt, ...) {
+    char out_string[1024];
     if (trace_enabled & trace_lvl) {
         va_list ap;
         va_start(ap, fmt);
@@ -42,14 +43,13 @@ void trace(uint8_t trace_lvl, char* fmt, ...) {
             if (trace_lvl & 1) break;
             trace_lvl = trace_lvl >> 1;
         }
-        if (trace_file) {
-            fprintf(trace_file, "%s", trace_strings[i]);
-            vfprintf(trace_file, fmt, ap);
-        }
-        if (trace_print) {
-            printf("%s", trace_strings[i]);
-            vprintf(fmt, ap);
-        }
+        vsprintf(out_string, fmt, ap);
+        if (trace_file) 
+            fprintf(trace_file, "%s %s", trace_strings[i], out_string);
+
+        if (trace_print) 
+            print_msg("%s %s", trace_strings[i], out_string);
+
         va_end(ap);
     }
 }

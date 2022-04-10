@@ -8,6 +8,8 @@
 #include "audio.h"
 #include "trace.h"
 
+#include "backends.h"
+
 /*
  * Mode 0:
 000___000___000___000___000___000___000________________
@@ -37,18 +39,28 @@ int cycles_per_frame;
 int video_line_cycles;
 int video_frame_cycles;
 
-uint32_t framebuffer32 [160*144];
-
-uint32_t linebuf_final[160];
-uint8_t linebuf[160];
+uint32_t linebuf_final[LCD_WIDTH];
+uint8_t linebuf[LCD_WIDTH];
 
 uint8_t video_current_line = 0;
 
-uint8_t video_sprites_xcoords_rendered[168];
+uint8_t video_sprites_xcoords_rendered[LCD_WIDTH+8];
 
 uint8_t video_window_y_position_internal;
 uint8_t video_window_y_counter_internal;
 uint8_t video_window_enabled_internal;
+
+int video_frame_done = 0;
+
+static video_backend_t *s_video_backend = NULL;
+static video_config *s_config;
+
+struct spritedata {
+    uint8_t y;
+    uint8_t x;
+    uint8_t tile;
+    uint8_t attr;
+};
 
 void video_reset_lcd() {
     // Called when LCD is disabled and getting enabled again.
@@ -57,8 +69,16 @@ void video_reset_lcd() {
     video_current_line = 0x00;
 }
 
-void video_init() {
+void video_init(video_backend_t *video_backend, video_config *cfg) {
+    s_video_backend = video_backend;
+    s_config = cfg;
+
+    s_video_backend->init(s_config);
+
     video_reset_lcd();
+
+    video_frame_done = 0;
+
     video_window_y_position_internal = 0;
     video_window_y_counter_internal = 0;
     video_window_enabled_internal = 0;
@@ -67,7 +87,15 @@ void video_init() {
     cycles_per_frame = CYCLES_PER_FRAME; //456 * 154;
 }
 
-inline uint8_t video_get_line() {
+void video_deinit() {
+    s_video_backend->deinit();
+}
+
+video_config *video_get_config() {
+    return s_config;
+}
+
+uint8_t video_get_line() {
     if (!(VID_LCDC & LCDC_LCDEN)) {
         return 0;
     } else {
@@ -77,22 +105,24 @@ inline uint8_t video_get_line() {
 
 void video_update_palette(uint8_t pal_offset, uint8_t reg) {
     // Update a palette. pal_offset is offset in palette arrays to take. 0 for bgp, 1*4 for obp0, 2*4 for obp1
-    /*pal_int[pal_offset+0] = (reg & 0x03) >> 0;
-    pal_int[pal_offset+1] = (reg & 0x0C) >> 2;
-    pal_int[pal_offset+2] = (reg & 0x30) >> 4;
-    pal_int[pal_offset+3] = (reg & 0xC0) >> 6;
-*/
+    gameboy_palette new_palette = { { (reg & 0x03) >> 0,
+                                      (reg & 0x0C) >> 2,
+                                      (reg & 0x30) >> 4,
+                                      (reg & 0xC0) >> 6 } };
+
     // Allow video backend to update palette in its own format
-    video_backend_update_palette(pal_offset, (reg & 0x03) >> 0, (reg & 0x0C) >> 2, (reg & 0x30) >> 4, (reg & 0xC0) >> 6);
+    s_video_backend->update_palette(pal_offset, new_palette);
 }
 
 void video_cycles(int cycles) {
+
+    // Handle STAT register updates
+    uint8_t oldstat = VID_STAT;
+
     cycles = cycles >> 2; // Machine cycles, not CPU cycles
     video_line_cycles -= cycles;
     video_frame_cycles -= cycles;
 
-    // Handle STAT register updates
-    uint8_t oldstat = VID_STAT;
 
     // Cycles 456 - 376 = MODE_SCAN_OAM
     // Cycles 375 - 85 = MODE_RENDERING
@@ -100,7 +130,7 @@ void video_cycles(int cycles) {
 
     if (VID_LCDC & LCDC_LCDEN) {
         // LCD is ENABLED, process STAT updates & interrupts
-        if (video_current_line >=144) {
+        if              (video_current_line >= 144) {
 
             // If we are outside of visible display, we are in VBL period
             VID_STAT = MODE_VBL;
@@ -148,7 +178,7 @@ void video_cycles(int cycles) {
             video_draw_line();
 
             // last line was drawn, time to update the framebuffer and req interrupts
-            video_update_framebuffer();
+            video_frame_done = 1;
 
             // request vblank interrupt if LCD is enabled
             if (VID_LCDC & LCDC_LCDEN) {
@@ -233,6 +263,8 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
 
     uint8_t newpixel;
 
+    int16_t vram_idx;
+
     // Respect sprite VERTICAL FLIP attribute
 
     if (tiles_type == TILES_SPRITES) {
@@ -260,9 +292,15 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
         } else {
             pal_offset = PAL_OFFSET_OBP0;
         }
-
-        p1 = vram[(tileidx << 4) + yoffset];
-        p2 = vram[(tileidx << 4) + yoffset + 1];
+  
+        // Respect sprite HORIZONTAL FLIP attribute
+        if (sprite_attr & SPRITE_ATTR_XFLIP) {
+            p1 = video_flip_tile_byte(vram[(tileidx << 4) + yoffset]);
+            p2 = video_flip_tile_byte(vram[(tileidx << 4) + yoffset+1]);
+        } else {            
+            p1 = vram[(tileidx << 4) + yoffset];
+            p2 = vram[(tileidx << 4) + yoffset + 1];
+        }
     } else if (VID_LCDC & LCDC_BGWIN_TILES) {
         tile_num = vram[tileidx++];
         p1 = vram[(tile_num << 4) + yoffset];
@@ -270,25 +308,23 @@ void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart,
     } else {
         // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
         tile_num = (int8_t) vram[tileidx++];
-        int16_t vram_idx = (0x1000 + (tile_num << 4) + yoffset) & 0x1FFF;
+        vram_idx = (0x1000 + (tile_num << 4) + yoffset) & 0x1FFF;
         p1 = vram[vram_idx];
         p2 = vram[vram_idx+1];
     }
 
-    // Respect sprite HORIZONTAL FLIP attribute
-
-    if (sprite_attr & SPRITE_ATTR_XFLIP) {
-        p1 = video_flip_tile_byte(p1);
-        p2 = video_flip_tile_byte(p2);
-    }
-
     for (i = xstart; i < count; i++) {
+
+        if (linexoffset >= LCD_WIDTH) {
+            linexoffset++;
+            continue;
+        }
 
         newpixel =  ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
                 |   ((p1 & (1 << (7 - i))) >> (7 - i)));
 
         // respect priority parameter!
-        if (tiles_type == TILES_SPRITES) {           
+        if (tiles_type == TILES_SPRITES) {
             if (newpixel) {
                 if (priority || (!linebuf[linexoffset])) {
                     linebuf[linexoffset] = newpixel + pal_offset;
@@ -309,6 +345,17 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     int xrest;
     int yoffset;
 
+    // Amount of full tiles to render changes depending on whether
+    // the X coordinate is evenly divisible by 8
+
+    int fulltiles = draw_width/8;
+
+    int linexoffset = draw_x;
+
+    uint8_t tileidx_lower = tileidx & 0x1F;
+    uint16_t tileidx_upper = tileidx & 0xFFE0;
+
+
     // Get pixel in tile to start drawing from and draw first tile
 
     if (tiles_type == TILES_BG) {
@@ -321,17 +368,6 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
         yoffset = (video_window_y_counter_internal & 0x07);
     }
 
-
-    // Amount of full tiles to render changes depending on whether
-    // the X coordinate is evenly divisible by 8
-
-    int fulltiles = draw_width/8;
-
-    int linexoffset = draw_x;
-
-
-    uint8_t tileidx_lower = tileidx & 0x1F;
-    uint16_t tileidx_upper = tileidx & 0xFFE0;
 
     if ((xrest != 0) && (tiles_type == TILES_BG)) {
         // Wrap around after 32 tiles.
@@ -372,14 +408,14 @@ void video_draw_sprites() {
     int sprite_idx = 0;
     int video_tile_height = 8 + ((VID_LCDC & LCDC_SPRITESIZE) << 1);
 
-    memset(video_sprites_xcoords_rendered, 0, 168);
-
     struct spritedata *cursprite = (struct spritedata*) oam;
 
     int xcount;
     int xstart;
     int yoffset;
     int linexoffset;
+
+    memset(video_sprites_xcoords_rendered, 0, 168);
 
     while ((drawn_sprites < 10) && (sprite_idx < (160/4))) {
 
@@ -392,7 +428,7 @@ void video_draw_sprites() {
         // and it is also visible if X position != 0 and X position < 168
         if ((yoffset >= 0) && (yoffset < video_tile_height) && (cursprite->x > 0) && (cursprite->x < 168)) {
 
-            // printf (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
+            // print_msg (">>> DRAWING SPRITE IDX %d, X:%d - Y: %d - N: %d - A: %x\n", sprite_idx, cursprite->x, cursprite->y, cursprite->tile, cursprite->attr );
 
             // if we already rendered a sprite with the same x coordinate, we don't draw it. (thanks to dmg-acid2)
 
@@ -421,12 +457,11 @@ void video_draw_sprites() {
 
                 // We don't need to take care of the tile ID for 16-pixel-tall sprites because
                 // the offset will be big enough to just reach into the correct tile's pixel data anyway.
-                uint8_t tile_id = cursprite->tile;
 
                 if (video_tile_height == 16)    // Ignore bit 0 for 16 pixel high objects (thanks dmg-acid2)
-                    tile_id &= 0xFE;
+                    cursprite->tile &= 0xFE;
 
-                video_draw_tile(tile_id, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
+                video_draw_tile(cursprite->tile, yoffset, linexoffset, xstart, xcount, TILES_SPRITES, cursprite->attr);
                 video_sprites_xcoords_rendered[cursprite->x] = 1;
 
                 drawn_sprites++;
@@ -440,6 +475,13 @@ void video_draw_sprites() {
 }
 void video_draw_line() {
 
+    uint16_t tileidx;
+
+    // Window position is offset by 7 pixels.
+    uint16_t window_start = VID_WX - 7;
+
+    uint8_t window_visible = 0;
+
     trace(TRACE_VIDEO, "Drawing LINE: %d\n", video_current_line);
 
     // clear the linebuffer before drawing anything
@@ -450,13 +492,11 @@ void video_draw_line() {
 
     if (!(VID_LCDC & LCDC_LCDEN)) {
         // convert line buffer to actual line inside the backend
-        video_backend_draw_line(video_current_line, linebuf);
+        s_video_backend->write_line(video_current_line, linebuf);
         return;
     }
 
     // Calculate which tile SCX and SCY corresponds to
-
-    uint16_t tileidx;
 
     if (VID_LCDC & LCDC_BG_TILEMAP) {
         tileidx = 0x1c00;
@@ -469,8 +509,6 @@ void video_draw_line() {
     tileidx += ((int16_t) VID_SCX >> 3) & 0x3FF;
 
     video_draw_tilemap(tileidx, 0, 160, TILES_BG);
-
-    uint8_t window_visible = 0;
 
     if (video_window_enabled_internal) {
         if ((video_window_y_position_internal <= 143) && (VID_WX <= 166)) {
@@ -491,9 +529,6 @@ void video_draw_line() {
                 }
                 tileidx += ((video_window_y_counter_internal >> 3) << 5);
 
-
-                // Window position is offset by 7 pixels.
-                uint16_t window_start = VID_WX - 7;
 
                 trace(TRACE_VIDEO, "VIDEO: Drawing Window WX: %d WY: %d\n", VID_WX, video_window_y_position_internal);
                 video_draw_tilemap(tileidx, window_start, 160-window_start, TILES_WINDOW);
@@ -516,7 +551,7 @@ void video_draw_line() {
 
     // convert line buffer to actual line inside the backend
 
-    video_backend_draw_line(video_current_line, linebuf);
+    s_video_backend->write_line(video_current_line, linebuf);
 
     // Update window enabled y/n
 
@@ -524,17 +559,16 @@ void video_draw_line() {
 
 }
 
-void video_update_framebuffer() {
-
+void video_ack_frame_done_and_draw() {
     trace(TRACE_VIDEO,"Drawing framebuffer to window\n");
+    s_video_backend->frame_done();
+    video_frame_done = 0;
+}
 
-    video_backend_update_framebuffer();
+video_backend_status video_handle_events() {
+    return s_video_backend->event_handler();
+}
 
-    video_backend_handle_events();
-    sys_handle_system();
-    sys_handle_joypad();
-    if (video_backend_get_status() == VID_BACKEND_STATUS_EXIT) {
-        sys_running = 0;
-    }
-
+int video_is_frame_done() {
+    return video_frame_done;
 }

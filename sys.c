@@ -1,16 +1,17 @@
 #include "sys.h"
 
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
+
+#include "compat.h"
+
 #include "mem.h"
 #include "cpu.h"
 #include "trace.h"
-#include "input.h"
+#include "video.h"
+#include "audio.h"
 
-#ifdef VIDEO_SDL2
-#include <SDL2/SDL.h>
-#endif
+#include "backends.h"
 
 uint8_t sys_carttype;
 uint8_t sys_mbc1_s;
@@ -39,7 +40,17 @@ int16_t sys_timer_interval_list[4] = {
     SYS_TIMER_CYCLES_16384HZ,
 };
 
-void sys_init() {
+uint8_t sys_buttons_old;
+uint8_t sys_buttons_all;
+
+input_backend_t *s_input_backend = NULL;
+
+void sys_init(input_backend_t *backend) {
+
+    s_input_backend = backend;
+
+    if (s_input_backend->init)
+        s_input_backend->init();
 
     sys_carttype = CT_ROMONLY;
     sys_mbc1_s = MBC1_2048_8;
@@ -53,11 +64,43 @@ void sys_init() {
     sys_timer_interval = SYS_TIMER_CYCLES_4096HZ;
 
     sys_buttons_all = 0;
+    sys_buttons_old = 0;
 
     sys_dma_source = 0;
     sys_dma_counter = 0;
     sys_dma_busy = 0;
 
+}
+
+void sys_deinit() {
+    if (s_input_backend->deinit)
+        s_input_backend->deinit();
+}
+
+void sys_run() {
+    while (1) {
+
+        while (!video_is_frame_done())
+            cpu_step();
+
+        video_ack_frame_done_and_draw();
+
+        audio_render_frame();
+
+        // Time the vsync, can be tricky
+        if (video_get_config()->use_audio_timing) {
+//            audio_wait_for_vsync();
+        } else {
+            sys_manual_vsync();
+        }
+
+        sys_handle_system();
+        sys_handle_joypad();
+
+        if (video_handle_events() == VIDEO_BACKEND_EXIT)
+            break;
+
+    }
 }
 
 void sys_dma_cycles(int cycles) {
@@ -152,15 +195,23 @@ void sys_handle_system() {
     // Nothing here yet...
 }
 
-void sys_handle_joypad() {
-    int32_t i;
+void sys_update_buttons() {
+    sys_buttons_all = s_input_backend->get_buttons();
+}
 
+
+void sys_handle_joypad() {
     // Call backend function for this
 
-    backend_handle_joypad();
+    sys_buttons_old = sys_buttons_all;
+    sys_update_buttons();
 
     // Interrupt on high-low transitions
+    // refreshing my high school boolean maths... Optimized, equivalent old code below...
 
+    if ((sys_buttons_old ^ sys_buttons_all) & sys_buttons_old)
+        sys_interrupt_req(INT_JOYPAD);
+    /*
     for (i = 0; i < 8; i++) {
         if (((sys_buttons_old >> i) & 0x01) && !(((sys_buttons_all >> i) & 0x01))) {
             // Req a joypad interupt
@@ -168,16 +219,15 @@ void sys_handle_joypad() {
             break;
         }
     }
+    */
 }
 
-void sys_interrupt_req(uint8_t index) {
-    // Requests an interrupt
-    trace(TRACE_INT,"Requesting interrupt: %02x\n",index);
-    SYS_IF |= index;
-}
+void sys_manual_vsync() {
+    // TODO
+    // long old_timestamp_ms;
+    // while ((s_last_timestamp_ms - old_timestamp_ms) > 16)) {
+    //     old_timestamp_ms = s_last_timestamp_ms;
+    //     s_last_timestamp_ms = get_current_timestamp_ms;
+    // }
 
-void sys_interrupt_clear(uint8_t index) {
-    // Clears an interrupt
-    trace(TRACE_INT,"Requesting interrupt: %02x\n",index);
-    SYS_IF &= ~index;
 }

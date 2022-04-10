@@ -7,58 +7,60 @@ CONFIG -= qt
 
 DEFINES += DEBUG
 
+DEFINES_SDL2 = VIDEO_SDL2 AUDIO_SDL2 INPUT_SDL2
+DEFINES_WIN32 = VIDEO_GDI AUDIO_WAVEOUT INPUT_WIN32
+LIBS_SDL2 = -lSDL2main -lSDL2
+LIBS_WIN32 = -lwinmm -lgdi32
+
 
 win32-g++ {
-DEFINES += INPUT_SDL2
-DEFINES += AUDIO_SDL2
-DEFINES += VIDEO_SDL2
-LIBS += -lmingw32
+    LIBS += -lmingw32
+    LIBS += $${LIBS_WIN32}
+    DEFINES += $${DEFINES_WIN32}
 }
 
 linux-g++ {
-DEFINES += INPUT_SDL2
-DEFINES += AUDIO_SDL2
-DEFINES += VIDEO_SDL2
-}
-
-contains(DEFINES, VIDEO_GDI) {
-    LIBS += -lgdi32
-}
-
-contains(DEFINES, AUDIO_SDL2)|contains(DEFINES, VIDEO_SDL2)|contains(DEFINES, INPUT_SDL2) {
-    LIBS += -lSDL2main
-    LIBS += -lSDL2
-}
-
-contains(DEFINES, AUDIO_SDL2) {
-    DEFINES += USE_AUDIO_TIMING
+    DEFINES += $${DEFINES_SDL2}
 }
 
 SOURCES += \
-    main.c \
-    cpu.c \
-    cpu_alu.c \
-    cpu_opcodes.c \
-    mem.c \
-    sys.c \
-    video.c \
     audio.c \
-    audio_sdl2.c \
+    backends.c \
+    cpu.c \
+    cpu_ops.c \
+    main.c \
+    main_imp.c \
+    mem.c \
+    ringbuf.c \
+    sys.c \
     trace.c \
-    video_sdl2.c \
-    input_sdl2.c \
-    input_win32.c \
-    video_gdi.c
+    video.c \
+
+
+SOURCES += \
+    video/v_gdi.c \
+    video/v_sdl2.c \
+    audio/a_dummy.c \
+    audio/a_sdl2.c \
+    audio/a_wvout.c \
+    input/i_win32.c \
+    input/i_sdl2.c \
+
+INCLUDEPATH = include/
 
 HEADERS += \
-    cpu.h \
-    mem.h \
-    sys.h \
-    video.h \
-    audio.h \
-    audio_sdl2.h \
-    trace.h \
-    input.h
+    include/backends.h \
+    include/bendlist.h \
+    include/compat.h \
+    include/cpu.h \
+    include/cpu_alu.h \
+    include/cpu_help.h \
+    include/mem.h \
+    include/ringbuf.h \
+    include/sys.h \
+    include/video.h \
+    include/audio.h \
+    include/trace.h
 
 DISTFILES += \
     LICENSE \

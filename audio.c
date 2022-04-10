@@ -5,9 +5,13 @@
 #include <limits.h>
 #include <math.h>
 
+#include "compat.h"
+
 #include "mem.h"
 #include "sys.h"
 #include "trace.h"
+
+#include "backends.h"
 
 // Pointer to I/O audio region in memory. This is so that the code is easier to read when accessing registers all over the place.
 struct audio_channel* audio_chans = (struct audio_channel*) &AUDIO_NR10;
@@ -26,6 +30,7 @@ static float audio_sweep_frequency = 0;
 const  uint8_t audio_square_waves[4] = {SAMPLE_D125,SAMPLE_D25,SAMPLE_D50,SAMPLE_D75};
 
 volatile float audio_timer = 0.0;                   // Constant audio timer. Globally available variable (so that video can be timed with it for example.
+static float audio_timer_step = 0.0;
 
 static float audio_256hz_cycle;                     // Cycle length for 256hz with respect to current sample rate
 static float audio_64hz_cycle;                      // Cycle length for 64hz with respect to current sample rate
@@ -56,10 +61,17 @@ static uint8_t audio_noise_lut15[32768];            // 15-stage LFSR LUT
 static uint16_t audio_noise_idx = 0;                // index of current entry in LFSR LUT
 static uint8_t audio_waveform_idx = 0;              // index of current sample in waveform data
 
-static SAMPLE audio_waveform_output[2] = {0,0};
-static SAMPLE audio_output_l[4] = {0,0,0,0};        // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
-static SAMPLE audio_output_r[4] = {0,0,0,0};        // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
+static int16_t audio_waveform_output[2] = {0,0};
+static int16_t audio_output_l[4] = {0,0,0,0};       // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
+static int16_t audio_output_r[4] = {0,0,0,0};       // +1 state output in SAMPLE type form for L channel (Channel volume and Master volume respected)
 
+static audio_backend_t *s_backend = NULL;
+static audio_config *s_config = NULL;
+
+static uint8_t *s_audio_frame_buffer = NULL;
+
+static float audio_samples_per_frame = 0.0;
+static uint32_t audio_samples_last_frame = 0;
 
 /************************************************************************************
  *                                AUDIO I/O FUNCTIONS                               *
@@ -109,7 +121,7 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
 
     case MEM_NR10:
         audio_sweep_enabled = ((data >> 4) & 0x07);
-        audio_sweep_cycle = ((float) audio_sample_rate * (float) ((data >> 4) & 0x07)) / 128.0;
+        audio_sweep_cycle = ((float) s_config->sample_rate * (float) ((data >> 4) & 0x07)) / 128.0;
         audio_sweep_shift = data & 0x07;
         break;
 
@@ -184,9 +196,9 @@ void audio_handle_write(uint16_t addr, uint16_t data) {
             audio_sweep_frequency = (float) (((chan->nr4 & 0x07) << 8) | chan->nr3);
 
         if (cidx <= 1)
-            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 8.0;
+            audio_cycle[cidx] = ((float) s_config->sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 8.0;
         else if (cidx == 2)
-            audio_cycle[cidx] = ((float) audio_sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 32.0;
+            audio_cycle[cidx] = ((float) s_config->sample_rate / (audio_divider[cidx] / (2048.0 - (float) (((chan->nr4 & 0x07) << 8) | chan->nr3)))) / 32.0;
 
         if (chan->nr4 & AUDIO_TRIGGER_BIT) {
             audio_counter[cidx] = 0.0; // NOTE ON counter reset
@@ -290,14 +302,14 @@ void audio_set_noise_frequency(uint8_t data) {
 
     // Calculate cycle
 
-    audio_cycle[3] = (float) audio_sample_rate / (dividingratio / (float) (2 << (shiftclock)));
+    audio_cycle[3] = (float) s_config->sample_rate / (dividingratio / (float) (2 << (shiftclock)));
 
 }
 
-inline void audio_update_volume(int i) {
+void audio_update_volume(int i) {
                      // max 0x0f          max 0x07
-    audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * ((SAMPLE_MAX/4) / (0x07*0x0f));   // L Update
-    audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * ((SAMPLE_MAX/4) / (0x07*0x0f));   // R Update
+    audio_output_l[i] = audio_volume[i] * audio_master_volume[0] * ((INT16_MAX/4) / (0x07*0x0f));   // L Update
+    audio_output_r[i] = audio_volume[i] * audio_master_volume[1] * ((INT16_MAX/4) / (0x07*0x0f));   // R Update
 
     if (i==2) {
         audio_update_waveform_data();   // If we're updating volume for the waveform channel we must also update the waveform data
@@ -306,7 +318,7 @@ inline void audio_update_volume(int i) {
     trace(TRACE_AUDIO, "CH %d - Volume update. VOL: %02x, MVOL_L: %02x, MVOL_L: %02x, OUT_L %04x, OUT_R %04x\n", i, audio_volume[i], audio_master_volume[0], audio_master_volume[1], audio_output_l[i], audio_output_r[i]);
 }
 
-inline void audio_update_waveform_data() {
+void audio_update_waveform_data() {
 
     // Update waveform data when requested
 
@@ -314,7 +326,7 @@ inline void audio_update_waveform_data() {
 
         // If we are not muted
 
-        SAMPLE tmp = audio_wavedata[audio_waveform_idx>>1];
+        uint16_t tmp = audio_wavedata[audio_waveform_idx>>1];
 
         if (audio_waveform_idx & 1) {   // If LSB = 1 then we have to shift to the right by 4 additional bits.
             audio_waveform_output[0] = ((((tmp & 0x0F) - 8) >> ((AUDIO_NR32 >>5) - 1)) * (audio_output_l[2] / 0x0F)); //
@@ -352,18 +364,18 @@ void audio_sweep_timer() {
             if (audio_sweep_frequency > 2047.0) {   // If frequency is > 2047 then the channel gets disabled, otherwise write new cycle
                 audio_disable_channel(0);
             } else {
-                audio_cycle[0] = ((float) audio_sample_rate / (audio_divider[0] / (2048.0 - audio_sweep_frequency))) / 8.0;
+                audio_cycle[0] = ((float) s_config->sample_rate / (audio_divider[0] / (2048.0 - audio_sweep_frequency))) / 8.0;
             }
         }
 
     }
 }
 
-void audio_envelope_timer() {    
+void audio_envelope_timer() {
     int32_t i;
 
     audio_64hz_timer += 1.0;
-    
+
     if (audio_64hz_timer >= audio_64hz_cycle) {
 
         audio_64hz_timer -= audio_64hz_cycle;
@@ -399,7 +411,7 @@ void audio_envelope_timer() {
 }
 
 void audio_length_timer() {
-    int32_t i;
+    int i;
 
     audio_256hz_timer += 1.0;
     if (audio_256hz_timer >= audio_256hz_cycle) {
@@ -427,48 +439,91 @@ void audio_length_timer() {
     }
 }
 
+void audio_advance_timing(float seconds_per_buffer) {
+///    print_msg("%f += %f", audio_timer, seconds_per_buffer);
+    audio_timer += seconds_per_buffer;
+}
+
+void audio_wait_for_vsync() {
+    while (audio_timer < 0.016);
+    audio_timer -= 0.016;
+}
+
+
 /************************************************************************************
  *                             AUDIO GENERATOR FUNCTIONS                            *
  ************************************************************************************/
 
-void audio_process_chunk(SAMPLE *stream, int32_t len) {
-    int32_t i;
+void audio_render_frame() {
+    uint8_t *stream;
+    uint8_t *buffer;
+    uint32_t i;
+    uint32_t samples_this_frame;
+    int16_t left;
+    int16_t right;
+    int16_t *right_ptr; // This exists because in case of mono we set it to the left channel's address
+    uint32_t bytes_per_sample = s_config->bits_per_sample / 8;
+    int stereo = (s_config->channels == 2);
+    audio_buffer_status result;
 
-    // This function should be called whenever a chunk of audio needs to be processed.
-    // len is the length in SAMPLEs that is requested.
-    // We use the global variable audio_sample_rate in some calculations so make sure this is correctly set.
+    right_ptr = (stereo) ? &right : &left;
 
-#ifdef USE_AUDIO_TIMING
-    audio_timer += (float) len / (float) audio_sample_rate;
-#endif
+
+    // This function should be called whenever a frameof audio needs to be processed.
+
+    // get amount of samples to be processed this frame. Needs to be done so that on average
+    // we end up with the correct amount even if this number is not an integer
+    samples_this_frame = (uint32_t) (audio_samples_per_frame);
+    if (audio_samples_last_frame != 0)
+        samples_this_frame += ceil(audio_samples_per_frame) - audio_samples_last_frame;
+
+    //print_msg("samples this frame: %lu, samples_per_frame: %f, sample_counter = %lu\n", samples_this_frame, audio_samples_per_frame, audio_samples_last_frame);
+    audio_samples_last_frame = samples_this_frame;
+
+    buffer = alloc_mem(samples_this_frame * bytes_per_sample * s_config->channels);
+    stream = buffer;
 
     // if audio is disabled just zero the buffer and go away.
     if (!AUDIO_SOUND_ENABLED) {
-        memset(stream, 0, len * sizeof(SAMPLE) * audio_amount_channels);
+        memset(stream, 0, samples_this_frame);
         return;
     }
 
-    len *= audio_amount_channels; // Stereo (two channels), so double the length
-
-    for (i = 0; i < len; i += audio_amount_channels) {
+    for (i = 0; i < samples_this_frame; i++) {
         // Process length and envelope timers.
+
         audio_length_timer();
         audio_envelope_timer();
         audio_sweep_timer();
 
-        stream[i+0] = 0;
-        stream[i+1] = 0;
+        left = 0;
+        *right_ptr = 0;
 
-        square(0, &stream[i]);     // Mix in Channel 1 (Square)
-        square(1, &stream[i]);     // Mix in Channel 2 (Square)
-        waveform(&stream[i]);      // Mix in Channel 3 (Waveform)
-        noise(&stream[i]);         // Mix in Channel 4 (Noise)
+        square(0, &left, right_ptr);     // Mix in Channel 1 (Square)
+        square(1, &left, right_ptr);     // Mix in Channel 2 (Square)
+        waveform(&left, right_ptr);      // Mix in Channel 3 (Waveform)
+        noise(&left, right_ptr);         // Mix in Channel 4 (Noise)
 
+        if      (bytes_per_sample == 1) *((int8_t*) stream)  = left >> 8;
+        else if (bytes_per_sample == 2) *((int16_t*) stream) = left;
+        stream += bytes_per_sample;
+
+        if (stereo) {
+            if      (bytes_per_sample == 1) *((int8_t*) stream)  = right >> 8;
+            else if (bytes_per_sample == 2) *((int16_t*) stream) = right;
+            stream += bytes_per_sample;
+        }
+    }
+
+    result = s_backend->play_buffer(buffer, samples_this_frame * bytes_per_sample * s_config->channels);
+
+    if (result != AUDIO_BUFFER_TAKEN) {
+        free(buffer);
     }
 
 }
 
-void square(unsigned int i, SAMPLE *buffer) {
+void square(unsigned int i, int16_t *left, int16_t *right) {
     if (audio_playing[i]) {
         audio_counter[i] += 1.0;
         if (audio_counter[i] >= audio_cycle[i]) {
@@ -477,39 +532,38 @@ void square(unsigned int i, SAMPLE *buffer) {
         }
 
         if (AUDIO_NR51 & (1 << i)) {
-            if (audio_sample[i] & 0x01) { buffer[0] += audio_output_l[i]; }
-                                   else { buffer[0] -= audio_output_l[i]; }
+            if (audio_sample[i] & 0x01) { *left += audio_output_l[i]; }
+                                   else { *left -= audio_output_l[i]; }
         }
 
         if (AUDIO_NR51 & (1 << (i+4))) {
-            if (audio_sample[i] & 0x01) { buffer[1] += audio_output_r[i]; }
-                                   else { buffer[1] -= audio_output_r[i]; }
+            if (audio_sample[i] & 0x01) { *right += audio_output_r[i]; }
+                                   else { *right -= audio_output_r[i]; }
         }
     }
 }
 
-void waveform(SAMPLE *buffer) {
-
+void waveform(int16_t *left, int16_t *right) {
     if (audio_playing[2]) {
         audio_counter[2] += 1.0;
         if(audio_counter[2] >= audio_cycle[2]) {
             audio_counter[2] -= audio_cycle[2];
             audio_waveform_idx = (audio_waveform_idx + 1) & 0x1F;
-
             audio_update_waveform_data();
-
         }
 
         if (AUDIO_NR51 & (1 << 2))
-            buffer[0] += audio_waveform_output[0];
+            *left += audio_waveform_output[0];
 
         if (AUDIO_NR51 & (1 << (2+4)))
-            buffer[1] += audio_waveform_output[1];
+            *right += audio_waveform_output[1];
     }
 
 }
 
-void noise(SAMPLE *buffer) {
+void noise(int16_t *left, int16_t *right) {
+
+    uint8_t sample;
 
     if (audio_playing[3]) {
 
@@ -524,21 +578,19 @@ void noise(SAMPLE *buffer) {
                 audio_noise_idx &= 0x7FFF;
         }
 
-        uint8_t sample;
-
         if (AUDIO_NR43 & AUDIO_NOISE_MODE)
             sample = audio_noise_lut7[audio_noise_idx];
         else
             sample = audio_noise_lut15[audio_noise_idx];
 
         if (AUDIO_NR51 & (1 << 3)) {
-            if (sample & 0x01) buffer[0] += audio_output_l[3];
-                          else buffer[0] -= audio_output_l[3];
+            if (sample & 0x01) *left += audio_output_l[3];
+                          else *left -= audio_output_l[3];
         }
 
         if (AUDIO_NR51 & (1 << (3+4))) {
-            if (sample & 0x01) buffer[1] += audio_output_r[3];
-                          else buffer[1] -= audio_output_r[3];
+            if (sample & 0x01) *right += audio_output_r[3];
+                          else *right -= audio_output_r[3];
         }
 
     }
@@ -549,14 +601,28 @@ void noise(SAMPLE *buffer) {
  *                              INIT AND DEINIT FUNCTIONS                           *
  ************************************************************************************/
 
-void mem_init_sample(SAMPLE* dest, int count) {
-    memset(dest, 0, sizeof(SAMPLE) * count);
+void mem_init_sample(int16_t *dest, int count) {
+    memset(dest, 0, sizeof(int16_t) * count);
 }
 
-void audio_init() {
-    audio_backend_init();
-    audio_256hz_cycle = ((float) audio_sample_rate / 256.0);
-    audio_64hz_cycle = ((float) audio_sample_rate / 64.0);
+void audio_init(audio_backend_t *backend, audio_config *cfg) {
+    uint32_t bytes_per_sample = cfg->bits_per_sample / 8;
+
+    s_backend = backend;
+    s_config = cfg;
+
+    s_backend->init(s_config);
+
+    audio_timer_step = (float) s_config->buffer_size / (float) s_config->sample_rate;
+    audio_256hz_cycle = ((float) s_config->sample_rate / 256.0);
+    audio_64hz_cycle = ((float) s_config->sample_rate / 64.0);
+
+    audio_samples_per_frame = cfg->sample_rate / 60.0;
+    audio_samples_last_frame = 0;
+
+    // Allocate "framebuffer" based on samples per frame's maximum possible integer value
+
+    s_audio_frame_buffer = alloc_mem((uint32_t) audio_samples_per_frame * bytes_per_sample * cfg->channels);
 
     mem_init_float(audio_counter, 4);           // Note frequency cycle counter for each channel
     mem_init_float(audio_envelope_count, 4);    // Envelope cycle counter
@@ -584,7 +650,8 @@ void audio_init() {
 }
 
 void audio_deinit() {
-    audio_backend_deinit();
+    s_backend->deinit();
+    free(s_audio_frame_buffer);
 }
 
 void audio_generate_luts() {
@@ -613,14 +680,3 @@ void audio_generate_luts() {
     }
 
 }
-
-
-#ifdef AUDIO_NONE
-
-uint32_t audio_sample_rate = 48000;
-uint32_t audio_amount_channels = 2;
-
-void audio_backend_init() {}
-void audio_backend_deinit() {}
-
-#endif

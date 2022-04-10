@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "cpu.h"
 #include "sys.h"
 #include "audio.h"
@@ -41,7 +42,9 @@ void mem_init_uint8(uint8_t* dest, int count) {
 
 int mem_init(uint8_t *file, int fsize) {
 
-    romfile = file;
+    char title[0x0F];
+
+	romfile = file;
     romsize = fsize;
 
     if (fsize > 0x4000) fsize = 0x4000;
@@ -83,32 +86,31 @@ int mem_init(uint8_t *file, int fsize) {
     ram_io[0x4B] = 0x00; // WX
     ram_ie = 0x00; // IE
 
-    *flags = 0xB0;
-    *pc = 0x100;
+    regs8[REG_F] = 0xB0;
+    regs16[REG_PC] = 0x100;
     regs8[REG_A] = 0x01;
-    regs16[REG_BC] = bs(0x0013);
-    regs16[REG_DE] = bs(0x00D8);
-    regs16[REG_HL] = bs(0x014D);
-    *sp = bs(0xFFFE);
+    regs16[REG_BC] = 0x0013;
+    regs16[REG_DE] = 0x00D8;
+    regs16[REG_HL] = 0x014D;
+    regs16[REG_SP] = 0xFFFE;
 
-    char title[0x0F];
     title[0x0E] = 0x00;
     memcpy(title, &romfile[0x134], 0x0C);
 
 
-    printf("Game Name: %s\n", title);
-    printf("Cartridge Type: ");
+    print_msg("Game Name: %s\n", title);
+    print_msg("Cartridge Type: ");
 
     sys_carttype = romfile[0x147];
 
     switch(sys_carttype) {
-    case CT_ROMONLY:        printf("ROM ONLY\n"); break;
-    case CT_MBC1:           printf("ROM + MBC1\n"); break;
-    case CT_MBC1RAM:        printf("ROM + MBC1 + RAM\n"); break;
-    case CT_MBC1RAMBATT:    printf("ROM + MBC1 + RAM + BATTERY\n"); break;
-    case CT_MBC2:           printf("ROM + MBC2\n"); break;
-    case CT_MBC2BATT:       printf("ROM + MBC2 + BATTERY\n"); break;
-    default:                printf("Unknown: %x", sys_carttype);
+    case CT_ROMONLY:        print_msg("ROM ONLY\n"); break;
+    case CT_MBC1:           print_msg("ROM + MBC1\n"); break;
+    case CT_MBC1RAM:        print_msg("ROM + MBC1 + RAM\n"); break;
+    case CT_MBC1RAMBATT:    print_msg("ROM + MBC1 + RAM + BATTERY\n"); break;
+    case CT_MBC2:           print_msg("ROM + MBC2\n"); break;
+    case CT_MBC2BATT:       print_msg("ROM + MBC2 + BATTERY\n"); break;
+    default:                print_msg("Unknown: %x", sys_carttype);
     }
 
     // init global variables that indicate MBC presence
@@ -119,21 +121,15 @@ int mem_init(uint8_t *file, int fsize) {
     sys_ismbc2  = (sys_carttype == CT_MBC2)
                 | (sys_carttype == CT_MBC2BATT);
 
-    printf("Reported ROM Size: ");
+    print_msg("Reported ROM Size: ");
 
     // Figure out ROM size
 
     sys_romsize = romfile[0x148];
 
-    int romsize = sys_romsize;
-    if (romsize < 7) {
-        romsize += 2;
-
-        printf("%i banks (", romsize);
-
-        printf("%i Bytes)\n", romsize << 14);
-
-
+    if (sys_romsize < 7) {
+        print_msg("%i banks (", (sys_romsize + 2));
+        print_msg("%i Bytes)\n", (sys_romsize + 2) << 14);
     }
 
     ram_mbc_bank_bits = 0;
@@ -177,6 +173,7 @@ void mem_update_banks_mbc1() {
     // Update RAM/ROM bank(s/pointers) based on modes
 
     uint32_t tmp_bank = (uint32_t) sys_mbc_bank_bits;
+    uint32_t romaddr;
 
     // 00, 10, 20, 30 select bank 01, 11, 21, 31
     if ((tmp_bank & 0x1F) == 0x00)
@@ -191,14 +188,14 @@ void mem_update_banks_mbc1() {
         ram2 = &ram_ext[0];
     }
 
-    uint32_t romaddr = tmp_bank << 14;
+	romaddr = tmp_bank << 14;
 
     trace(TRACE_MBC, "New MBC ROM Address set: %08x (%02x), max %08x \n", romaddr, tmp_bank, romsize - 0x4000);
 
     rom2 = &romfile[romaddr];   // Set new bank window
 
     if (romaddr > (romsize - 0x4000)) {
-        printf("MBC bank OUTSIDE ROM area %08x (max. %08x)! Forcing crash...", romaddr, romsize - 0x4000);
+        print_msg("MBC bank OUTSIDE ROM area %08x (max. %08x)! Forcing crash...", romaddr, romsize - 0x4000);
         memset(rom1, 0xff, 0x8000);
         rom2 = rom1;
     }
@@ -294,7 +291,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
     // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
 
     if ((sys_dma_busy) && (addr < 0xFE00)) {
-        printf("!!!! WARNING: Ignored write to %x during DMA!\n", addr);
+        print_msg("!!!! WARNING: Ignored write to %x during DMA!\n", addr);
         return;
     }
 
@@ -412,11 +409,6 @@ void cpu_write8(uint16_t addr, uint8_t data) {
             }
         }
 
-#ifdef DEBUG
-        if (addr == 0xFF02 && data == 0x81)
-            printf("%c", cpu_read8_force(0xFF01));
-#endif
-
         // Palette registers require palettes to be updated
 
         if (addr == MEM_BGP)
@@ -428,11 +420,16 @@ void cpu_write8(uint16_t addr, uint8_t data) {
         if (addr == MEM_OBP1)
             video_update_palette(PAL_OFFSET_OBP1, data);
 
+#ifdef DEBUG
+        if (addr == 0xFF02 && data == 0x81)
+            print_msg("%c", cpu_read8_force(0xFF01));
+
         if (addr == MEM_SCY)
             trace(TRACE_SYS, "SCY Write: %02x\n", data);
 
         if (addr == MEM_SCX)
             trace(TRACE_SYS, "SCX Write: %02x\n", data);
+#endif
 
         ram_io[addr - 0xFF00] = data;
 
