@@ -64,6 +64,9 @@ int a_waveout_init(audio_config *cfg) {
 
     memset(&waveformat, 0, sizeof(WAVEFORMAT_T));
 
+    // We don't support this. Timing is dictated by the ringbuffer locking.
+    cfg->audio_timing_override = 1;
+
     if (cfg->buffer_size < BUFFER_LENGTH_MINIMUM) {
         cfg->buffer_size = BUFFER_LENGTH_MINIMUM;
         print_msg("WARNING: Buffer size extremely low, increasing\n");

@@ -66,6 +66,10 @@ int main_default (int argc, char *argv[])
     result = mem_init(romfile, fsize);
 
     audio_init(s_audio_backend, &s_audio_config);
+
+    if (s_audio_config.audio_timing_override)
+        s_video_config.use_audio_timing = 0;
+
     video_init(s_video_backend, &s_video_config);
 
     // Run CPU

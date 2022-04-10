@@ -47,6 +47,7 @@ typedef struct {
     uint16_t bits_per_sample;
     uint16_t channels;
     uint16_t buffer_size;
+    uint16_t audio_timing_override;
 } audio_config;
 
 typedef enum {
