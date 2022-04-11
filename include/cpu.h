@@ -50,8 +50,6 @@ extern uint8_t      cpu_halted;
 
 void cpu_init();
 void cpu_step();
-void cpu_ext_op();
-uint16_t process_interrupts();
 
 // MEM.C
 

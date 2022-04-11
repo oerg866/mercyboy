@@ -44,50 +44,10 @@ void cpu_step() {
     ram_io[0x07], SYS_IF, cpu_ie, ram_ie, pc, af, bc, de, hl, sp, op, video_get_line());
 
     // Jump Table
-
-    opcodes[op]();
-
-    if ((op != 0xF3) && (op != 0xFB)) {
-        if (cpu_ei_pending) {
-            cpu_ie = 1;
-            cpu_ei_pending = 0;
-        } else if (cpu_di_pending) {
-            cpu_ie = 0;
-            cpu_di_pending = 0;
-        }
+    if (op == 0xcb) {
+        ipc(1);
+        ext_opcodes[r8(pc)]();
+    } else {
+        opcodes[op]();
     }
-
-    if (op != 0x76)
-        process_interrupts();   // Don't process interrupts again if we've just returned from a HALT
-}
-
-uint16_t process_interrupts() {
-
-    uint8_t ie_mask = (ram_ie & SYS_IF);
-
-/**************************************************************/
-// This macro is to unroll the loop that checks whether or not a particular interrupt should be serviced
-#define check_and_service_ints(id) \
-    if (ie_mask & (1 << id)) { \
-        cpu_ei_pending = 0; \
-        cpu_ie = 0; \
-        sys_interrupt_clear(1 << id); \
-        sp -= 2; \
-        w16(sp, pc); \
-        pc = 0x40 + (id << 3); \
-        cycles(12); \
-        return 1; \
-    } \
-    else if (cpu_halted && (SYS_IF & (1 << id))) { return 1; }
-/**************************************************************/
-
-    if (cpu_ie || cpu_halted) {
-        check_and_service_ints(0);
-        check_and_service_ints(1);
-        check_and_service_ints(2);
-        check_and_service_ints(3);
-        check_and_service_ints(4);
-    }
-    return 0;
-
 }

@@ -7,9 +7,48 @@
 #include "trace.h"
 #include "mem.h"
 
-void op_nop() { ipc(1); cycles(4); }
+// Helper macros to check pending interrupt enable / disable and processing actions.
+// Put into macros because there are 3 instructions where this doesn't occur
+// and we don't want to waste cycles on every instruction to check if this is
+// one of those where it *doesn't* happen
 
-#define op_ld(reg1, reg2) reg1 = reg2; ipc(1); cycles(4)
+// check for pending EI/DI, happens for everything EXCEPT 0xf3 (di) and 0xfb (ei)
+#define ei_di() if (cpu_ei_pending) { cpu_ie = 1; cpu_ei_pending = 0; } \
+           else if (cpu_di_pending) { cpu_ie = 0; cpu_di_pending = 0; }
+
+static inline uint16_t ints() {
+    // check for interrupts to be serviced and then... service them
+    uint8_t ie_mask = (ram_ie & SYS_IF);
+
+/**************************************************************/
+// This macro is to unroll the loop that checks whether or not a particular interrupt should be serviced
+#define check_and_service_ints(id) \
+    if (ie_mask & (1 << id)) { \
+        cpu_ei_pending = 0; \
+        cpu_ie = 0; \
+        sys_interrupt_clear(1 << id); \
+        sp -= 2; \
+        w16(sp, pc); \
+        pc = 0x40 + (id << 3); \
+        cycles(12); \
+        return 1; \
+    } \
+    else if (cpu_halted && (SYS_IF & (1 << id))) { return 1; }
+/**************************************************************/
+
+    if (cpu_ie || cpu_halted) {
+        check_and_service_ints(0);
+        check_and_service_ints(1);
+        check_and_service_ints(2);
+        check_and_service_ints(3);
+        check_and_service_ints(4);
+    }
+    return 0;
+}
+
+void op_nop() { ipc(1); cycles(4); ei_di(); ints(); }
+
+#define op_ld(reg1, reg2) reg1 = reg2; ipc(1); cycles(4); ei_di(); ints()
 void op_ld_a_b() { op_ld(a, b); }
 void op_ld_a_c() { op_ld(a, c); }
 void op_ld_a_d() { op_ld(a, d); }
@@ -59,7 +98,7 @@ void op_ld_l_d() { op_ld(l, d); }
 void op_ld_l_e() { op_ld(l, e); }
 void op_ld_l_h() { op_ld(l, h); }
 
-#define op_ld_r_imm8(reg) reg = r8(pc+1); ipc(2); cycles(8)
+#define op_ld_r_imm8(reg) reg = r8(pc+1); ipc(2); cycles(8); ei_di(); ints()
 void op_ld_a_n() { op_ld_r_imm8(a); }   // ld r, #n
 void op_ld_b_n() { op_ld_r_imm8(b); }
 void op_ld_c_n() { op_ld_r_imm8(c); }
@@ -68,9 +107,9 @@ void op_ld_e_n() { op_ld_r_imm8(e); }
 void op_ld_h_n() { op_ld_r_imm8(h); }
 void op_ld_l_n() { op_ld_r_imm8(l); }
 
-void op_ld_ind_hl_n() { w8(hl, r8(pc+1)); ipc(2); cycles(8); } // ld (hl), #n
+void op_ld_ind_hl_n() { w8(hl, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); } // ld (hl), #n
 
-#define op_ld_ind_hl_r(reg) w8(hl, reg); ipc(1); cycles(8)
+#define op_ld_ind_hl_r(reg) w8(hl, reg); ipc(1); cycles(8); ei_di(); ints()
 void op_ld_ind_hl_a() { op_ld_ind_hl_r(a); } // ld (hl), r
 void op_ld_ind_hl_b() { op_ld_ind_hl_r(b); }
 void op_ld_ind_hl_c() { op_ld_ind_hl_r(c); }
@@ -79,7 +118,7 @@ void op_ld_ind_hl_e() { op_ld_ind_hl_r(e); }
 void op_ld_ind_hl_h() { op_ld_ind_hl_r(h); }
 void op_ld_ind_hl_l() { op_ld_ind_hl_r(l); }
 
-#define op_ld_r_ind_hl(reg) reg = r8(hl); ipc(1); cycles(8)
+#define op_ld_r_ind_hl(reg) reg = r8(hl); ipc(1); cycles(8); ei_di(); ints()
 void op_ld_a_ind_hl() { op_ld_r_ind_hl(a); } // ld r, (hl)
 void op_ld_b_ind_hl() { op_ld_r_ind_hl(b); }
 void op_ld_c_ind_hl() { op_ld_r_ind_hl(c); }
@@ -88,59 +127,59 @@ void op_ld_e_ind_hl() { op_ld_r_ind_hl(e); }
 void op_ld_h_ind_hl() { op_ld_r_ind_hl(h); }
 void op_ld_l_ind_hl() { op_ld_r_ind_hl(l); }
 
-void op_ld_ind_bc_a() { w8(bc, a); ipc(1); cycles(8); } // ld (rr), a
+void op_ld_ind_bc_a() { w8(bc, a); ipc(1); cycles(8); ei_di(); ints(); } // ld (rr), a
 void op_ld_ind_de_a() { w8(de, a); ipc(1); cycles(8); }
-// void op_ld_ind_hl_a() { w8(hl, a); ipc(1); cycles(8); }
+// void op_ld_ind_hl_a() { w8(hl, a); ipc(1); cycles(8); ei_di(); ints(); }
 
-void op_ld_a_ind_bc() { a = r8(bc); ipc(1); cycles(8); } // ld a, (rr)
-void op_ld_a_ind_de() { a = r8(de); ipc(1); cycles(8); }
-// void op_ld_a_ind_hl() { a = r8(bc); ipc(1); cycles(8); }
+void op_ld_a_ind_bc() { a = r8(bc); ipc(1); cycles(8); ei_di(); ints(); } // ld a, (rr)
+void op_ld_a_ind_de() { a = r8(de); ipc(1); cycles(8); ei_di(); ints(); }
+// void op_ld_a_ind_hl() { a = r8(bc); ipc(1); cycles(8); ei_di(); ints(); }
 
-void op_ld_ind_mem_a() { w8(r16(pc+1), a); ipc(3); cycles(16); } // ld (nn), a
-void op_ld_a_ind_mem() { a = r8(r16(pc+1)); ipc(3); cycles(16); } // ld a, (nn)
+void op_ld_ind_mem_a() { w8(r16(pc+1), a); ipc(3); cycles(16); ei_di(); ints(); } // ld (nn), a
+void op_ld_a_ind_mem() { a = r8(r16(pc+1)); ipc(3); cycles(16); ei_di(); ints(); } // ld a, (nn)
 
-void op_ld_a_ind_ff00_c() { a = r8(0xff00+c); ipc(1); cycles(8); } // ld a, ($ff00+c)
-void op_ld_ind_ff00_c_a() { w8(0xff00+c, a); ipc(1); cycles(8); } // ld ($ff00+c), a
+void op_ld_a_ind_ff00_c() { a = r8(0xff00+c); ipc(1); cycles(8); ei_di(); ints(); } // ld a, ($ff00+c)
+void op_ld_ind_ff00_c_a() { w8(0xff00+c, a); ipc(1); cycles(8); ei_di(); ints(); } // ld ($ff00+c), a
 
-void op_ldh_n_a() { w8(0xff00+r8(pc+1), a); ipc(2); cycles(12); } // ld ($ff00+n), a
-void op_ldh_a_n() { a = r8(0xff00+r8(pc+1)); ipc(2); cycles(12); } // ld a, ($ff00+n)
+void op_ldh_n_a() { w8(0xff00+r8(pc+1), a); ipc(2); cycles(12); ei_di(); ints(); } // ld ($ff00+n), a
+void op_ldh_a_n() { a = r8(0xff00+r8(pc+1)); ipc(2); cycles(12); ei_di(); ints(); } // ld a, ($ff00+n)
 
-void op_ldd_a_ind_hl() { a = r8(hl); hl -= 1; ipc(1); cycles(8); } // ld a, (hl-)
-void op_ldd_ind_hl_a() { w8(hl, a); hl -= 1; ipc(1); cycles(8); } // ld (hl-), a
-void op_ldi_a_ind_hl() { a = r8(hl); hl += 1; ipc(1); cycles(8); } // ld a, (hl+)
-void op_ldi_ind_hl_a() { w8(hl, a); hl += 1; ipc(1); cycles(8); } // ld (hl+), a
+void op_ldd_a_ind_hl() { a = r8(hl); hl -= 1; ipc(1); cycles(8); ei_di(); ints(); } // ld a, (hl-)
+void op_ldd_ind_hl_a() { w8(hl, a); hl -= 1; ipc(1); cycles(8); ei_di(); ints(); } // ld (hl-), a
+void op_ldi_a_ind_hl() { a = r8(hl); hl += 1; ipc(1); cycles(8); ei_di(); ints(); } // ld a, (hl+)
+void op_ldi_ind_hl_a() { w8(hl, a); hl += 1; ipc(1); cycles(8); ei_di(); ints(); } // ld (hl+), a
 
-#define op_ld_r16_imm16(reg) reg = r16(pc+1); ipc(3); cycles(12)
+#define op_ld_r16_imm16(reg) reg = r16(pc+1); ipc(3); cycles(12); ei_di(); ints()
 void op_ld_bc_nn() { op_ld_r16_imm16(bc); } // ld (rr), #nn
 void op_ld_de_nn() { op_ld_r16_imm16(de); }
 void op_ld_hl_nn() { op_ld_r16_imm16(hl); }
 void op_ld_sp_nn() { op_ld_r16_imm16(sp); }
 
-void op_ld_sp_hl() { sp = hl; ipc(1); cycles(8) }
+void op_ld_sp_hl() { sp = hl; ipc(1); cycles(8); ei_di(); ints(); }
 void op_ld_hl_sp_n() { // ld hl, sp+(signed)n
     uint16_t n = r8(pc+1);
     hl = sp;
     if (n & 0x80) n |= 0xff00; // Fix sign extension
     alu_add16_imm8(&hl, n);
-    ipc(2); cycles(12);
+    ipc(2); cycles(12); ei_di(); ints();
 }
 
-void op_ld_ind_nn_sp() { w16(r16(pc+1), sp); ipc(3); cycles(20); } // ld (nn), sp
+void op_ld_ind_nn_sp() { w16(r16(pc+1), sp); ipc(3); cycles(20); ei_di(); ints(); } // ld (nn), sp
 
-#define op_push(reg) sp -= 2; w16(sp, reg); ipc(1); cycles(16)
+#define op_push(reg) sp -= 2; w16(sp, reg); ipc(1); cycles(16); ei_di(); ints()
 void op_push_af() { op_push(af); }
 void op_push_bc() { op_push(bc); }
 void op_push_de() { op_push(de); }
 void op_push_hl() { op_push(hl); }
 
-#define op_pop(reg) reg = r16(sp); sp += 2; ipc(1); cycles(12)
-void op_pop_af() { af = r16(sp) & 0xFFF0; sp += 2; ipc(1); cycles(12); } // Only upper bits of F respected
+#define op_pop(reg) reg = r16(sp); sp += 2; ipc(1); cycles(12); ei_di(); ints()
+void op_pop_af() { af = r16(sp) & 0xFFF0; sp += 2; ipc(1); cycles(12); ei_di(); ints(); } // Only upper bits of F respected
 void op_pop_bc() { op_pop(bc); }
 void op_pop_de() { op_pop(de); }
 void op_pop_hl() { op_pop(hl); }
 
 
-#define op_add8_a_r(reg) alu_add8(&a, reg); ipc(1); cycles(4)
+#define op_add8_a_r(reg) alu_add8(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_add8_a_a() { op_add8_a_r(a); }
 void op_add8_a_b() { op_add8_a_r(b); }
 void op_add8_a_c() { op_add8_a_r(c); }
@@ -149,10 +188,10 @@ void op_add8_a_e() { op_add8_a_r(e); }
 void op_add8_a_h() { op_add8_a_r(h); }
 void op_add8_a_l() { op_add8_a_r(l); }
 
-void op_add8_a_ind_hl() { alu_add8(&a, r8(hl)); ipc(1); cycles(8); }
-void op_add8_a_imm() { alu_add8(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_add8_a_ind_hl() { alu_add8(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_add8_a_imm() { alu_add8(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_add16_hl_r(reg) alu_add16(&hl, reg); ipc(1); cycles(8)
+#define op_add16_hl_r(reg) alu_add16(&hl, reg); ipc(1); cycles(8); ei_di(); ints()
 void op_add16_hl_bc() { op_add16_hl_r(bc); }
 void op_add16_hl_de() { op_add16_hl_r(de); }
 void op_add16_hl_hl() { op_add16_hl_r(hl); }
@@ -162,10 +201,10 @@ void op_add16_sp_imm() {    // add sp, #(signed)n
     uint16_t n = r8(pc+1);
     if (n & 0x80) n |= 0xff00; // Fix sign extension
     alu_add16_imm8(&sp, n);
-    ipc(2); cycles(16);
+    ipc(2); cycles(16); ei_di(); ints();
 }
 
-#define op_adc8_a_r(reg) alu_adc8(&a, (uint16_t) reg); ipc(1); cycles(4)
+#define op_adc8_a_r(reg) alu_adc8(&a, (uint16_t) reg); ipc(1); cycles(4); ei_di(); ints()
 void op_adc8_a_a() { op_adc8_a_r(a); }
 void op_adc8_a_b() { op_adc8_a_r(b); }
 void op_adc8_a_c() { op_adc8_a_r(c); }
@@ -174,10 +213,10 @@ void op_adc8_a_e() { op_adc8_a_r(e); }
 void op_adc8_a_h() { op_adc8_a_r(h); }
 void op_adc8_a_l() { op_adc8_a_r(l); }
 
-void op_adc8_a_ind_hl() { alu_adc8(&a, r8(hl)); ipc(1); cycles(8); }
-void op_adc8_a_imm() { alu_adc8(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_adc8_a_ind_hl() { alu_adc8(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_adc8_a_imm() { alu_adc8(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_sub8_a_r(reg) alu_sub8(&a, reg); ipc(1); cycles(4)
+#define op_sub8_a_r(reg) alu_sub8(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_sub8_a_a() { op_sub8_a_r(a); }
 void op_sub8_a_b() { op_sub8_a_r(b); }
 void op_sub8_a_c() { op_sub8_a_r(c); }
@@ -186,10 +225,10 @@ void op_sub8_a_e() { op_sub8_a_r(e); }
 void op_sub8_a_h() { op_sub8_a_r(h); }
 void op_sub8_a_l() { op_sub8_a_r(l); }
 
-void op_sub8_a_ind_hl() { alu_sub8(&a, r8(hl)); ipc(1); cycles(8); }
-void op_sub8_a_imm() { alu_sub8(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_sub8_a_ind_hl() { alu_sub8(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_sub8_a_imm() { alu_sub8(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_sbc8_a_r(reg) alu_sbc8(&a, (uint16_t) reg); ipc(1); cycles(4)
+#define op_sbc8_a_r(reg) alu_sbc8(&a, (uint16_t) reg); ipc(1); cycles(4); ei_di(); ints()
 void op_sbc8_a_a() { op_sbc8_a_r(a); }
 void op_sbc8_a_b() { op_sbc8_a_r(b); }
 void op_sbc8_a_c() { op_sbc8_a_r(c); }
@@ -198,10 +237,10 @@ void op_sbc8_a_e() { op_sbc8_a_r(e); }
 void op_sbc8_a_h() { op_sbc8_a_r(h); }
 void op_sbc8_a_l() { op_sbc8_a_r(l); }
 
-void op_sbc8_a_ind_hl() { alu_sbc8(&a, r8(hl)); ipc(1); cycles(8); }
-void op_sbc8_a_imm() { alu_sbc8(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_sbc8_a_ind_hl() { alu_sbc8(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_sbc8_a_imm() { alu_sbc8(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_and_a_r(reg) alu_and(&a, reg); ipc(1); cycles(4)
+#define op_and_a_r(reg) alu_and(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_and_a_a() { op_and_a_r(a); }
 void op_and_a_b() { op_and_a_r(b); }
 void op_and_a_c() { op_and_a_r(c); }
@@ -210,10 +249,10 @@ void op_and_a_e() { op_and_a_r(e); }
 void op_and_a_h() { op_and_a_r(h); }
 void op_and_a_l() { op_and_a_r(l); }
 
-void op_and_a_ind_hl() { alu_and(&a, r8(hl)); ipc(1); cycles(8); }
-void op_and_a_imm() { alu_and(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_and_a_ind_hl() { alu_and(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_and_a_imm() { alu_and(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_or_a_r(reg) alu_or(&a, reg); ipc(1); cycles(4)
+#define op_or_a_r(reg) alu_or(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_or_a_a() { op_or_a_r(a); }
 void op_or_a_b() { op_or_a_r(b); }
 void op_or_a_c() { op_or_a_r(c); }
@@ -222,10 +261,10 @@ void op_or_a_e() { op_or_a_r(e); }
 void op_or_a_h() { op_or_a_r(h); }
 void op_or_a_l() { op_or_a_r(l); }
 
-void op_or_a_ind_hl() { alu_or(&a, r8(hl)); ipc(1); cycles(8); }
-void op_or_a_imm() { alu_or(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_or_a_ind_hl() { alu_or(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_or_a_imm() { alu_or(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_xor_a_r(reg) alu_xor(&a, reg); ipc(1); cycles(4)
+#define op_xor_a_r(reg) alu_xor(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_xor_a_a() { op_xor_a_r(a); }
 void op_xor_a_b() { op_xor_a_r(b); }
 void op_xor_a_c() { op_xor_a_r(c); }
@@ -234,10 +273,10 @@ void op_xor_a_e() { op_xor_a_r(e); }
 void op_xor_a_h() { op_xor_a_r(h); }
 void op_xor_a_l() { op_xor_a_r(l); }
 
-void op_xor_a_ind_hl() { alu_xor(&a, r8(hl)); ipc(1); cycles(8); }
-void op_xor_a_imm() { alu_xor(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_xor_a_ind_hl() { alu_xor(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_xor_a_imm() { alu_xor(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_cp_a_r(reg) alu_cp(&a, reg); ipc(1); cycles(4)
+#define op_cp_a_r(reg) alu_cp(&a, reg); ipc(1); cycles(4); ei_di(); ints()
 void op_cp_a_a() { op_cp_a_r(a); }
 void op_cp_a_b() { op_cp_a_r(b); }
 void op_cp_a_c() { op_cp_a_r(c); }
@@ -246,10 +285,10 @@ void op_cp_a_e() { op_cp_a_r(e); }
 void op_cp_a_h() { op_cp_a_r(h); }
 void op_cp_a_l() { op_cp_a_r(l); }
 
-void op_cp_a_ind_hl() { alu_cp(&a, r8(hl)); ipc(1); cycles(8); }
-void op_cp_a_imm() { alu_cp(&a, r8(pc+1)); ipc(2); cycles(8); }
+void op_cp_a_ind_hl() { alu_cp(&a, r8(hl)); ipc(1); cycles(8); ei_di(); ints(); }
+void op_cp_a_imm() { alu_cp(&a, r8(pc+1)); ipc(2); cycles(8); ei_di(); ints(); }
 
-#define op_inc8_r(reg) alu_inc8(&reg); ipc(1); cycles(4)
+#define op_inc8_r(reg) alu_inc8(&reg); ipc(1); cycles(4); ei_di(); ints()
 void op_inc8_a() { op_inc8_r(a); }
 void op_inc8_b() { op_inc8_r(b); }
 void op_inc8_c() { op_inc8_r(c); }
@@ -258,15 +297,15 @@ void op_inc8_e() { op_inc8_r(e); }
 void op_inc8_h() { op_inc8_r(h); }
 void op_inc8_l() { op_inc8_r(l); }
 
-void op_inc8_ind_hl() { alu_inc8(mem_addr(hl)); ipc(1); cycles(12); }
+void op_inc8_ind_hl() { alu_inc8(mem_addr(hl)); ipc(1); cycles(12); ei_di(); ints(); }
 
-#define op_inc16_r(reg) alu_inc16(&reg); ipc(1); cycles(8)
+#define op_inc16_r(reg) alu_inc16(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_inc16_bc() { op_inc16_r(bc); }
 void op_inc16_de() { op_inc16_r(de); }
 void op_inc16_hl() { op_inc16_r(hl); }
 void op_inc16_sp() { op_inc16_r(sp); }
 
-#define op_dec8_r(reg) alu_dec8(&reg); ipc(1); cycles(4)
+#define op_dec8_r(reg) alu_dec8(&reg); ipc(1); cycles(4); ei_di(); ints()
 void op_dec8_a() { op_dec8_r(a); }
 void op_dec8_b() { op_dec8_r(b); }
 void op_dec8_c() { op_dec8_r(c); }
@@ -275,15 +314,15 @@ void op_dec8_e() { op_dec8_r(e); }
 void op_dec8_h() { op_dec8_r(h); }
 void op_dec8_l() { op_dec8_r(l); }
 
-void op_dec8_ind_hl() { alu_dec8(mem_addr(hl)); ipc(1); cycles(12); }
+void op_dec8_ind_hl() { alu_dec8(mem_addr(hl)); ipc(1); cycles(12); ei_di(); ints(); }
 
-#define op_dec16_r(reg) alu_dec16(&reg); ipc(1); cycles(8)
+#define op_dec16_r(reg) alu_dec16(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_dec16_bc() { op_dec16_r(bc); }
 void op_dec16_de() { op_dec16_r(de); }
 void op_dec16_hl() { op_dec16_r(hl); }
 void op_dec16_sp() { op_dec16_r(sp); }
 
-#define op_swap_r(reg) alu_swap(&reg); ipc(1); cycles(8)
+#define op_swap_r(reg) alu_swap(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_swap_a() { op_swap_r(a); }
 void op_swap_b() { op_swap_r(b); }
 void op_swap_c() { op_swap_r(c); }
@@ -292,11 +331,11 @@ void op_swap_e() { op_swap_r(e); }
 void op_swap_h() { op_swap_r(h); }
 void op_swap_l() { op_swap_r(l); }
 
-void op_swap_ind_hl() { alu_swap(mem_addr(hl)); ipc(1); cycles(16); }
+void op_swap_ind_hl() { alu_swap(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
 /* Rotate instructions */
 
-#define op_rl_r(reg) alu_rl(&reg); ipc(1); cycles(8)
+#define op_rl_r(reg) alu_rl(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_rl_a() { op_rl_r(a); }
 void op_rl_b() { op_rl_r(b); }
 void op_rl_c() { op_rl_r(c); }
@@ -305,10 +344,10 @@ void op_rl_e() { op_rl_r(e); }
 void op_rl_h() { op_rl_r(h); }
 void op_rl_l() { op_rl_r(l); }
 
-void op_rla() { alu_rl(&a); f &= ~FLAG_Z; ipc(1); cycles(4); } // short ver. 4 cycles & resets z flag!!
-void op_rl_ind_hl() { alu_rl(mem_addr(hl)); ipc(1); cycles(16); }
+void op_rla() { alu_rl(&a); f &= ~FLAG_Z; ipc(1); cycles(4); ei_di(); ints(); } // short ver. 4 cycles & resets z flag!!
+void op_rl_ind_hl() { alu_rl(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
-#define op_rlc_r(reg) alu_rlc(&reg); ipc(1); cycles(8)
+#define op_rlc_r(reg) alu_rlc(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_rlc_a() { op_rlc_r(a); }
 void op_rlc_b() { op_rlc_r(b); }
 void op_rlc_c() { op_rlc_r(c); }
@@ -317,10 +356,10 @@ void op_rlc_e() { op_rlc_r(e); }
 void op_rlc_h() { op_rlc_r(h); }
 void op_rlc_l() { op_rlc_r(l); }
 
-void op_rlca() { alu_rlc(&a); f &= ~FLAG_Z; ipc(1); cycles(4); } // short ver. 4 cycles & resets z flag!!
-void op_rlc_ind_hl() { alu_rlc(mem_addr(hl)); ipc(1); cycles(16); }
+void op_rlca() { alu_rlc(&a); f &= ~FLAG_Z; ipc(1); cycles(4); ei_di(); ints(); } // short ver. 4 cycles & resets z flag!!
+void op_rlc_ind_hl() { alu_rlc(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
-#define op_rr_r(reg) alu_rr(&reg); ipc(1); cycles(8)
+#define op_rr_r(reg) alu_rr(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_rr_a() { op_rr_r(a); }
 void op_rr_b() { op_rr_r(b); }
 void op_rr_c() { op_rr_r(c); }
@@ -329,10 +368,10 @@ void op_rr_e() { op_rr_r(e); }
 void op_rr_h() { op_rr_r(h); }
 void op_rr_l() { op_rr_r(l); }
 
-void op_rra() { alu_rr(&a); f &= ~FLAG_Z; ipc(1); cycles(4); } // short ver. 4 cycles & resets z flag!!
-void op_rr_ind_hl() { alu_rr(mem_addr(hl)); ipc(1); cycles(16); }
+void op_rra() { alu_rr(&a); f &= ~FLAG_Z; ipc(1); cycles(4); ei_di(); ints(); } // short ver. 4 cycles & resets z flag!!
+void op_rr_ind_hl() { alu_rr(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
-#define op_rrc_r(reg) alu_rrc(&reg); ipc(1); cycles(8)
+#define op_rrc_r(reg) alu_rrc(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_rrc_a() { op_rrc_r(a); }
 void op_rrc_b() { op_rrc_r(b); }
 void op_rrc_c() { op_rrc_r(c); }
@@ -341,12 +380,12 @@ void op_rrc_e() { op_rrc_r(e); }
 void op_rrc_h() { op_rrc_r(h); }
 void op_rrc_l() { op_rrc_r(l); }
 
-void op_rrca() { alu_rrc(&a); f &= ~FLAG_Z; ipc(1); cycles(4); } // short ver. 4 cycles & resets z flag!!
-void op_rrc_ind_hl() { alu_rrc(mem_addr(hl)); ipc(1); cycles(16); }
+void op_rrca() { alu_rrc(&a); f &= ~FLAG_Z; ipc(1); cycles(4); ei_di(); ints(); } // short ver. 4 cycles & resets z flag!!
+void op_rrc_ind_hl() { alu_rrc(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
 /* Shift instructions */
 
-#define op_sla_r(reg) alu_sl(&reg); ipc(1); cycles(8)
+#define op_sla_r(reg) alu_sl(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_sla_a() { op_sla_r(a); }
 void op_sla_b() { op_sla_r(b); }
 void op_sla_c() { op_sla_r(c); }
@@ -355,9 +394,9 @@ void op_sla_e() { op_sla_r(e); }
 void op_sla_h() { op_sla_r(h); }
 void op_sla_l() { op_sla_r(l); }
 
-void op_sla_ind_hl() { alu_sl(mem_addr(hl)); ipc(1); cycles(16); }
+void op_sla_ind_hl() { alu_sl(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
-#define op_sra_r(reg) alu_sra(&reg); ipc(1); cycles(8)
+#define op_sra_r(reg) alu_sra(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_sra_a() { op_sra_r(a); }
 void op_sra_b() { op_sra_r(b); }
 void op_sra_c() { op_sra_r(c); }
@@ -366,9 +405,9 @@ void op_sra_e() { op_sra_r(e); }
 void op_sra_h() { op_sra_r(h); }
 void op_sra_l() { op_sra_r(l); }
 
-void op_sra_ind_hl() { alu_sra(mem_addr(hl)); ipc(1); cycles(16); }
+void op_sra_ind_hl() { alu_sra(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
-#define op_srl_r(reg) alu_srl(&reg); ipc(1); cycles(8)
+#define op_srl_r(reg) alu_srl(&reg); ipc(1); cycles(8); ei_di(); ints()
 void op_srl_a() { op_srl_r(a); }
 void op_srl_b() { op_srl_r(b); }
 void op_srl_c() { op_srl_r(c); }
@@ -377,11 +416,11 @@ void op_srl_e() { op_srl_r(e); }
 void op_srl_h() { op_srl_r(h); }
 void op_srl_l() { op_srl_r(l); }
 
-void op_srl_ind_hl() { alu_srl(mem_addr(hl)); ipc(1); cycles(16); }
+void op_srl_ind_hl() { alu_srl(mem_addr(hl)); ipc(1); cycles(16); ei_di(); ints(); }
 
 /* Bit Operations */
 
-#define op_bit_r(reg, bit) alu_bit(&reg, bit); ipc(1); cycles(8)
+#define op_bit_r(reg, bit) alu_bit(&reg, bit); ipc(1); cycles(8); ei_di(); ints()
 void op_bit_0_a() { op_bit_r(a, 0); }
 void op_bit_1_a() { op_bit_r(a, 1); }
 void op_bit_2_a() { op_bit_r(a, 2); }
@@ -445,7 +484,7 @@ void op_bit_5_l() { op_bit_r(l, 5); }
 void op_bit_6_l() { op_bit_r(l, 6); }
 void op_bit_7_l() { op_bit_r(l, 7); }
 
-#define op_bit_ind_hl(bit) alu_bit(mem_addr(hl), bit); ipc(1); cycles(16)
+#define op_bit_ind_hl(bit) alu_bit(mem_addr(hl), bit); ipc(1); cycles(16); ei_di(); ints()
 void op_bit_0_ind_hl() { op_bit_ind_hl(0); }
 void op_bit_1_ind_hl() { op_bit_ind_hl(1); }
 void op_bit_2_ind_hl() { op_bit_ind_hl(2); }
@@ -457,7 +496,7 @@ void op_bit_7_ind_hl() { op_bit_ind_hl(7); }
 
 /* Bit ops: Set ********************************************************************/
 
-#define op_set_r(reg, bit) alu_set(&reg, bit); ipc(1); cycles(8)
+#define op_set_r(reg, bit) alu_set(&reg, bit); ipc(1); cycles(8); ei_di(); ints()
 void op_set_0_a() { op_set_r(a, 0); }
 void op_set_1_a() { op_set_r(a, 1); }
 void op_set_2_a() { op_set_r(a, 2); }
@@ -521,7 +560,7 @@ void op_set_5_l() { op_set_r(l, 5); }
 void op_set_6_l() { op_set_r(l, 6); }
 void op_set_7_l() { op_set_r(l, 7); }
 
-#define op_set_ind_hl(bit) alu_set(mem_addr(hl), bit); ipc(1); cycles(16)
+#define op_set_ind_hl(bit) alu_set(mem_addr(hl), bit); ipc(1); cycles(16); ei_di(); ints()
 void op_set_0_ind_hl() { op_set_ind_hl(0); }
 void op_set_1_ind_hl() { op_set_ind_hl(1); }
 void op_set_2_ind_hl() { op_set_ind_hl(2); }
@@ -533,7 +572,7 @@ void op_set_7_ind_hl() { op_set_ind_hl(7); }
 
 /* Bit-Ops: RES **********************************************************************/
 
-#define op_res_r(reg, bit) alu_res(&reg, bit); ipc(1); cycles(8)
+#define op_res_r(reg, bit) alu_res(&reg, bit); ipc(1); cycles(8); ei_di(); ints()
 void op_res_0_a() { op_res_r(a, 0); }
 void op_res_1_a() { op_res_r(a, 1); }
 void op_res_2_a() { op_res_r(a, 2); }
@@ -597,7 +636,7 @@ void op_res_5_l() { op_res_r(l, 5); }
 void op_res_6_l() { op_res_r(l, 6); }
 void op_res_7_l() { op_res_r(l, 7); }
 
-#define op_res_ind_hl(bit) alu_res(mem_addr(hl), bit); ipc(1); cycles(16)
+#define op_res_ind_hl(bit) alu_res(mem_addr(hl), bit); ipc(1); cycles(16); ei_di(); ints()
 void op_res_0_ind_hl() { op_res_ind_hl(0); }
 void op_res_1_ind_hl() { op_res_ind_hl(1); }
 void op_res_2_ind_hl() { op_res_ind_hl(2); }
@@ -609,7 +648,7 @@ void op_res_7_ind_hl() { op_res_ind_hl(7); }
 
 /* Jumps */
 
-#define op_jp_cc(condition) if (condition) { pc = r16(pc+1); cycles(16); } else { ipc(3); cycles(12); }
+#define op_jp_cc(condition) if (condition) { pc = r16(pc+1); cycles(16); } else { ipc(3); cycles(12); } ei_di(); ints()
 void op_jp_nz() { op_jp_cc(!(f & FLAG_Z)); }
 void op_jp_z() { op_jp_cc(f & FLAG_Z); }
 void op_jp_nc() { op_jp_cc(!(f & FLAG_C)); }
@@ -618,7 +657,7 @@ void op_jp_c() { op_jp_cc(f & FLAG_C); }
 void op_jp() { pc = r16(pc+1); cycles(16); }
 void op_jp_hl() { pc = hl; cycles(4); }
 
-#define op_jr_cc(condition) if (condition) { pc += (int8_t) r8_signed(pc+1) + 2; cycles(12); } else { ipc(2); cycles(8); }
+#define op_jr_cc(condition) if (condition) { pc += (int8_t) r8_signed(pc+1) + 2; cycles(12); } else { ipc(2); cycles(8); } ei_di(); ints()
 void op_jr_nz() { op_jr_cc(!(f & FLAG_Z)); }
 void op_jr_z() { op_jr_cc(f & FLAG_Z); }
 void op_jr_nc() { op_jr_cc(!(f & FLAG_C)); }
@@ -628,17 +667,17 @@ void op_jr() {pc += (int16_t) r8_signed(pc+1) + 2; cycles(8); }
 
 /* Calls */
 
-#define op_call_cc(condition) if (condition) { sp -= 2; w16(sp, pc+3); pc = r16(pc+1); cycles(24); } else { ipc(3); cycles(12); }
+#define op_call_cc(condition) if (condition) { sp -= 2; w16(sp, pc+3); pc = r16(pc+1); cycles(24); } else { ipc(3); cycles(12); } ei_di(); ints()
 void op_call_nz() { op_call_cc(!(f & FLAG_Z)); }
 void op_call_z() { op_call_cc(f & FLAG_Z); }
 void op_call_nc() { op_call_cc(!(f & FLAG_C)); }
 void op_call_c() { op_call_cc(f & FLAG_C); }
 
-void op_call() { sp -=2; w16(sp, pc+3); pc = r16(pc+1); cycles(24); }
+void op_call() { sp -=2; w16(sp, pc+3); pc = r16(pc+1); cycles(24); ei_di(); ints(); }
 
 /* Rst */
 
-#define op_rst(loc) sp -= 2; w16(sp, pc+1); pc = loc; cycles(16)
+#define op_rst(loc) sp -= 2; w16(sp, pc+1); pc = loc; cycles(16); ei_di(); ints()
 void op_rst_00() { op_rst(0x00); }
 void op_rst_08() { op_rst(0x08); }
 void op_rst_10() { op_rst(0x10); }
@@ -650,9 +689,9 @@ void op_rst_38() { op_rst(0x38); }
 
 /* Ret */
 
-void op_ret() { pc = r16(sp); sp += 2; cycles(16); }
+void op_ret() { pc = r16(sp); sp += 2; cycles(16); ei_di(); ints(); }
 
-#define op_ret_cc(condition) if (condition) { pc = r16(sp); sp += 2; cycles(20); } else { ipc(1); cycles(8) }
+#define op_ret_cc(condition) if (condition) { pc = r16(sp); sp += 2; cycles(20); } else { ipc(1); cycles(8) } ei_di(); ints()
 void op_ret_nz() { op_ret_cc(!(f & FLAG_Z)); }
 void op_ret_z() { op_ret_cc(f & FLAG_Z); }
 void op_ret_nc() { op_ret_cc(!(f & FLAG_C)); }
@@ -660,25 +699,26 @@ void op_ret_c() { op_ret_cc(f & FLAG_C); }
 
 /* Interrupt stuff */
 
-void op_reti() { pc = r16(sp); sp += 2; cpu_ie = 1; cycles(8); } // Return & enable interrupts
-void op_di() { cpu_di_pending = 1; ipc(1); cycles(4); } // Dísable interupts
-void op_ei() { cpu_ei_pending = 1; ipc(1); cycles(4); } // Enable interupts
+void op_reti() { pc = r16(sp); sp += 2; cpu_ie = 1; cycles(8); ei_di(); ints(); } // Return & enable interrupts
+void op_di() { cpu_di_pending = 1; ipc(1); cycles(4); ints(); } // Dísable interupts
+void op_ei() { cpu_ei_pending = 1; ipc(1); cycles(4); ints(); } // Enable interupts
 
 /* Random operations that have nothing to do with arithmetic or whatever */
 
-void op_daa() { alu_daa(); ipc(1); cycles(4); } // decimal adjust a, f*** this s***
+void op_daa() { alu_daa(); ipc(1); cycles(4); ei_di(); ints(); } // decimal adjust a, f*** this s***
 
-void op_cpl() { a = ~a; f |= FLAG_N | FLAG_H; ipc(1); cycles(4); } // cpl complement a
-void op_ccf() { f = (f & FLAG_Z) | (~f & FLAG_C); ipc(1); cycles(4); } // ccf complement carry flag
+void op_cpl() { a = ~a; f |= FLAG_N | FLAG_H; ipc(1); cycles(4); ei_di(); ints(); } // cpl complement a
+void op_ccf() { f = (f & FLAG_Z) | (~f & FLAG_C); ipc(1); cycles(4); ei_di(); ints(); } // ccf complement carry flag
 
-void op_scf() { f = (f & FLAG_Z) | FLAG_C; ipc(1); cycles(4); } // set carry flag, discard N and H
+void op_scf() { f = (f & FLAG_Z) | FLAG_C; ipc(1); cycles(4); ei_di(); ints(); } // set carry flag, discard N and H
 
 void op_halt() {
     ipc(1);
     cpu_halted = 1;
-    do { cycles(4); } while (!process_interrupts());
+    do { cycles(4); } while (!ints());
     cycles(4);
     cpu_halted = 0;
+    ei_di();
 }
 
 void op_stop() {
@@ -686,10 +726,10 @@ void op_stop() {
     while(sys_buttons_all == last_buttons) {
         sys_update_buttons(); cycles(4);
     }
-    ipc(2); cycles(4);
+    ipc(2); cycles(4); ei_di(); ints();
 }
 
-void op_illegal() { print_msg("Illegal opcode %d\n", op); ipc(1); cycles(4); }
+void op_illegal() { print_msg("Illegal opcode %d\n", op); ipc(1); cycles(4); ei_di(); ints(); }
 
 void op_prefix_cb() { ipc(1); ext_opcodes[r8(pc)](); };
 
