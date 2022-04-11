@@ -63,44 +63,30 @@ void cpu_step() {
 
 uint16_t process_interrupts() {
 
-    uint16_t i;
+    uint8_t ie_mask = (ram_ie & SYS_IF);
+
+/**************************************************************/
+// This macro is to unroll the loop that checks whether or not a particular interrupt should be serviced
+#define check_and_service_ints(id) \
+    if (ie_mask & (1 << id)) { \
+        cpu_ei_pending = 0; \
+        cpu_ie = 0; \
+        sys_interrupt_clear(1 << id); \
+        sp -= 2; \
+        w16(sp, pc); \
+        pc = 0x40 + (id << 3); \
+        cycles(12); \
+        return 1; \
+    } \
+    else if (cpu_halted && (SYS_IF & (1 << id))) { return 1; }
+/**************************************************************/
 
     if (cpu_ie || cpu_halted) {
-        for (i = 0; i < 5; i++) {
-            if ((ram_ie & SYS_IF) & (1 << i)) {
-                // if an int is enabled and pending, service it
-
-                trace(TRACE_INT, "Servicing interrupt index %i\n", i);
-
-                // step 1: disable interrupt master enable
-                // also clear bit in IF register
-
-                cpu_ei_pending = 0;
-                cpu_ie = 0;
-                sys_interrupt_clear(1 << i);
-
-
-                // step 2: push pc onto stack
-
-                sp -= 2;
-                cpu_write16(sp, pc);
-
-                // step 3: new PC is 0x40 + int index
-
-                pc = 0x40 + (i << 3);
-
-                // 12 cycles i think??
-                cycles(12);
-                return 1;
-            } else if (cpu_halted && (SYS_IF & (1 << i))) {
-                // if we're in a HALT, IME is 0 and an interrupt flag gets set
-                // just resume execution
-                return 1;
-            }
-
-
-        }
-
+        check_and_service_ints(0);
+        check_and_service_ints(1);
+        check_and_service_ints(2);
+        check_and_service_ints(3);
+        check_and_service_ints(4);
     }
     return 0;
 
