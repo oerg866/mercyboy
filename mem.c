@@ -173,8 +173,6 @@ int mem_init(uint8_t *file, int fsize) {
         fill_mem_ptr_range(mem_reads, 0xa000, 0xbfff, mem_read_mbc1_ram);
     }
 
-
-    fill_mem_ptr_range(mem_reads, 0xa200, 0xbfff, mem_read_dummy);
     fill_mem_ptr_range(mem_reads, 0xc000, 0xdfff, mem_read_ram);
     fill_mem_ptr_range(mem_reads, 0xe000, 0xfdff, mem_read_ram_echo);
     fill_mem_ptr_range(mem_reads, 0xfe00, 0xfe9f, mem_read_oam);
