@@ -106,18 +106,21 @@ void sys_run() {
 }
 
 void sys_dma_cycles(int cycles) {
+    unsigned i;
+
     // Process dma cycles, one byte per cycle
     if (sys_dma_busy) {
 
         trace(TRACE_SYS, "DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
 
-        for (; cycles != 0; cycles--) {
-            oam[sys_dma_counter] = cpu_read8_force(sys_dma_source + sys_dma_counter);
-            if (++sys_dma_counter == SYS_DMA_LENGTH) {
+        for (i = 0; i < cycles; ++i){
+            oam[sys_dma_counter++] = cpu_read8_force(sys_dma_source + sys_dma_counter);
+            if (sys_dma_counter == SYS_DMA_LENGTH) {
                 // DMA has ended
                 sys_dma_source = 0;
                 sys_dma_counter = 0;
                 sys_dma_busy = 0;
+                break;
             }
         }
     }
