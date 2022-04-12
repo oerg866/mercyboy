@@ -33,8 +33,8 @@ static inline void print_msg(char* fmt, ...) {
 void trace_init(uint8_t enabled, uint8_t print, FILE *file);
 void trace(uint8_t trace_lvl, char* fmt, ...);
 #else 
-inline void trace_init(uint8_t enabled, uint8_t print, FILE *file) {}
-inline void trace(uint8_t trace_lvl, char* fmt, ...) {}
+static inline void trace_init(uint8_t enabled, uint8_t print, FILE *file) {}
+static inline void trace(uint8_t trace_lvl, char* fmt, ...) {}
 #endif
 
 #endif // TRACE_H
