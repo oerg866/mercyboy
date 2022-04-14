@@ -53,10 +53,6 @@ void cpu_step();
 
 // MEM.C
 
-uint8_t cpu_read8(uint16_t addr);
-int8_t cpu_read8_signed(uint16_t addr);
-uint16_t cpu_read16(uint16_t addr);
-
 void cpu_write8(uint16_t addr, uint8_t n);
 void cpu_write16(uint16_t addr, uint16_t n);
 
@@ -80,5 +76,14 @@ extern const op_func ext_opcodes[256];
 #define _cpu_flags = (reg8[REG_F])
 #define _cpu_sp = (reg16[REG_SP])
 #define _cpu_pc = (regs16[REG_PC])
+
+// If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+#define cpu_read8(addr) (((sys_dma_busy) && (addr < 0xFE00)) ? 0 : cpu_read8_force(addr))
+
+// Just a copy of read8 but returns signed int... makes cpu opcode code a bit cleaner
+#define cpu_read8_signed(addr) (((sys_dma_busy) && (addr < 0xFE00)) ? (int8_t) 0 : (int8_t) cpu_read8_force(addr))
+
+#define cpu_read16(addr) (((sys_dma_busy) && (addr < 0xFE00)) ? 0 : cpu_read8_force(addr) | (cpu_read8_force(addr+1) << 8))
+
 
 #endif // CPU_H
