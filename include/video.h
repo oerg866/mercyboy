@@ -74,7 +74,6 @@ uint8_t video_get_line();
 void video_update_palette(uint8_t pal_offset, uint8_t reg);
 void video_cycles(int cycles);
 uint8_t video_flip_tile_byte(uint8_t src);
-void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr);
 void video_draw_line();
 void video_ack_frame_done_and_draw();
 video_backend_status video_handle_events();

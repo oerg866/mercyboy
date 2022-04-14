@@ -246,168 +246,47 @@ void video_cycles(int cycles) {
         video_window_y_counter_internal = 0;
         video_window_y_position_internal = VID_WY;
     }
-
-
 }
 
-void video_draw_tile(uint16_t tileidx, int yoffset, int linexoffset, int xstart, int count, uint8_t tiles_type, uint8_t sprite_attr) {
+// Draws a pixel from bytes p1 and p2
+#define px(index)   ((((p2 & (1 << (7 - index))) >> (7 - index)) << 1) \
+                  | ((p1 & (1 << (7 - index))) >> (7 - index)))
+
+static inline void video_draw_tile_bg_partial(uint16_t tileidx, int yoffset, unsigned region, uint8_t *lbuf, int xstart, int count) {
     // Render pixels of a tile into a line buffer
     // tileidx: index in vram of the map
     // yoffset: y offset inside the tile,
-    // linexoffset: destination x position inside line buffer
-    // xstart: x position inside the tile
-    // count: amount of pixels to render
-    // tiles_type: defines if tiles drawn are BG, Sprite or Window tiles.
-    // sprites_attr: Sprite attributes (Xflip, yflip, prio, etc.)
-
-    int32_t i;
-
-    int16_t tile_num;
-    uint8_t p1, p2; // tile bytes 1 and 2
-    uint8_t priority = !(sprite_attr & SPRITE_ATTR_PRIO); // 0 = forced priority, 1 = behind bg
-
-    // Palette offset, BGP by default. Will be set for sprites further down.
-
-    uint8_t pal_offset;
-
-    uint8_t newpixel;
-
-    int16_t vram_idx;
-
-    // Respect sprite VERTICAL FLIP attribute
-
-    if (tiles_type == TILES_SPRITES) {
-        int sprite_height = 8 + ((VID_LCDC & LCDC_SPRITESIZE) << 1);
-        if (sprite_attr & SPRITE_ATTR_YFLIP) {
-            yoffset = (sprite_height - 1) - yoffset;
-        }
-    } else {
-        // If BG/Window isn't enabled in LCDC, we blank it and leave.
-        if (!(VID_LCDC & LCDC_BGWINEN)) {
-            memset(linebuf, 0, 160);
-            return;
-        }
-    }
-
-    yoffset = yoffset << 1;
-
-    // Get tile from map    // Get tile from map
-
-    if (tiles_type == TILES_SPRITES) {
-
-        // For sprites set the palette offset.
-        if (sprite_attr & SPRITE_ATTR_PALETTE) {
-            pal_offset = PAL_OFFSET_OBP1;
-        } else {
-            pal_offset = PAL_OFFSET_OBP0;
-        }
-
-        p1 = vram[(tileidx << 4) + yoffset];
-        p2 = vram[(tileidx << 4) + yoffset + 1];
-    } else if (VID_LCDC & LCDC_BGWIN_TILES) {
-        tile_num = vram[tileidx++];
-        p1 = vram[(tile_num << 4) + yoffset];
-        p2 = vram[(tile_num << 4) + yoffset + 1];
-    } else {
-        // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-        tile_num = (int8_t) vram[tileidx++];
-        vram_idx = (0x1000 + (tile_num << 4) + yoffset) & 0x1FFF;
-        p1 = vram[vram_idx];
-        p2 = vram[vram_idx+1];
-    }
-
-    // Respect sprite HORIZONTAL FLIP attribute
-
-    if (sprite_attr & SPRITE_ATTR_XFLIP) {
-        p1 = video_flip_tile_byte(p1);
-        p2 = video_flip_tile_byte(p2);
-    }
-
-    for (i = xstart; i < count; i++) {
-
-        if (linexoffset >= LCD_WIDTH) {
-            linexoffset++;
-            continue;
-        }
-
-        newpixel =  ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
-                |   ((p1 & (1 << (7 - i))) >> (7 - i)));
-
-        // respect priority parameter!
-        if (tiles_type == TILES_SPRITES) {
-            if (newpixel) {
-                if (priority || (!linebuf[linexoffset])) {
-                    linebuf[linexoffset] = newpixel + pal_offset;
-                }
-            }
-        } else {
-            linebuf[linexoffset] = newpixel;
-        }
-
-        linexoffset++;
-    }
-}
-
-
-
-void video_draw_tile_bg_partial(uint16_t tileidx, int yoffset, uint8_t *linebuf_ptr, int xstart, int count) {
-    // Render pixels of a tile into a line buffer
-    // tileidx: index in vram of the map
-    // yoffset: y offset inside the tile,
-    // linexoffset: destination x position inside line buffer
+    // region: if this is 0, tiles are from 0x8800-0x97FF, else 9000-9FFF.
+    // lbuf: destination buffer
     // xstart: x position inside the tile
     // count: amount of pixels to render
 
     int32_t i;
     uint8_t p1, p2; // tile bytes 1 and 2
 
-    // Get tile from map
-    if (VID_LCDC & LCDC_BGWIN_TILES) { // Get tile from map
-        tileidx = (vram[tileidx] << 4) + yoffset + yoffset;
-    } else {
-        // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-        tileidx = ((int8_t) vram[tileidx]);
-        tileidx = (0x1000 + (tileidx<< 4) + yoffset + yoffset) & 0x1FFF;
-    }
+    tileidx = region ? (vram[tileidx] << 4) + yoffset + yoffset : (0x1000 + ((int8_t) vram[tileidx] << 4) + yoffset + yoffset) & 0x1FFF;
 
     p1 = vram[tileidx++];
     p2 = vram[tileidx];
 
-    for (i = xstart; i < count; i++) {
-        *linebuf_ptr++ = ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
-                       | ((p1 & (1 << (7 - i))) >> (7 - i)));
-    }
+    for (i = xstart; i < count; i++)
+        *lbuf++ = px(i);
 }
 
-void video_draw_tile_bg_full(uint16_t tileidx, int yoffset, uint8_t *linebuf_ptr) {
+static inline void video_draw_tile_bg_full(uint16_t tileidx, int yoffset, unsigned region, uint8_t *lbuf) {
     // Render ALL pixels of a tile into a line buffer
     // tileidx: index in vram of the map
     // yoffset: y offset inside the tile,
-    // linexoffset: destination x position inside line buffer
+    // region: if this is 0, tiles are from 0x8800-0x97FF, else 9000-9FFF.
+    // lbuf: destination buffer
     uint8_t p1, p2; // tile bytes 1 and 2
 
-    if (VID_LCDC & LCDC_BGWIN_TILES) { // Get tile from map
-        tileidx = (vram[tileidx] << 4) + yoffset + yoffset;
-    } else {
-        // signed if bit 4 of lcdc is 0, meaning 0x8800-0x97FF
-        tileidx = ((int8_t) vram[tileidx]);
-        tileidx = (0x1000 + (tileidx<< 4) + yoffset + yoffset) & 0x1FFF;
-    }
+    tileidx = region ? (vram[tileidx] << 4) + yoffset + yoffset : (0x1000 + ((int8_t) vram[tileidx] << 4) + yoffset + yoffset) & 0x1FFF;
 
     p1 = vram[tileidx++];
     p2 = vram[tileidx];
 
-#define drawpixel(index)   ((((p2 & (1 << (7 - index))) >> (7 - index)) << 1) \
-                         | ((p1 & (1 << (7 - index))) >> (7 - index)))
-
-    *linebuf_ptr++ = drawpixel(0);
-    *linebuf_ptr++ = drawpixel(1);
-    *linebuf_ptr++ = drawpixel(2);
-    *linebuf_ptr++ = drawpixel(3);
-    *linebuf_ptr++ = drawpixel(4);
-    *linebuf_ptr++ = drawpixel(5);
-    *linebuf_ptr++ = drawpixel(6);
-    *linebuf_ptr++ = drawpixel(7);
+    *lbuf++ = px(0); *lbuf++ = px(1); *lbuf++ = px(2); *lbuf++ = px(3); *lbuf++ = px(4); *lbuf++ = px(5); *lbuf++ = px(6); *lbuf++ = px(7);
 }
 
 
@@ -424,8 +303,10 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
     int fulltiles = draw_width/8;
 
     uint8_t *linebuf_ptr = &linebuf[draw_x];
-    uint8_t tileidx_lower = tileidx & 0x1F;
-    uint16_t tileidx_upper = tileidx & 0xFFE0;
+    uint16_t tileidx_base = tileidx & 0xFFE0;
+    uint16_t tileidx_offset = tileidx & 0x1F;
+
+    unsigned region = (VID_LCDC & LCDC_BGWIN_TILES);
 
     // Get pixel in tile to start drawing from and draw first tile
 
@@ -442,9 +323,8 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     if ((xrest != 0) && (tiles_type == TILES_BG)) {
         fulltiles -= 1;
-        tileidx = tileidx_upper | tileidx_lower;
-        tileidx_lower = (tileidx_lower + 1) & 0x1F; // Wrap around after 32 tiles.
-        video_draw_tile_bg_partial(tileidx, yoffset, linebuf_ptr, xrest, 8);
+        tileidx = tileidx_base + (tileidx_offset++ & 0x1F);
+        video_draw_tile_bg_partial(tileidx, yoffset, region, linebuf_ptr, xrest, 8);
         linebuf_ptr += 8 - xrest;
     }
 
@@ -452,17 +332,16 @@ void video_draw_tilemap(uint16_t tileidx, int draw_x, int draw_width, uint8_t ti
 
     for (h = 0; h < fulltiles; h++) {
         // index in vram of the map, y position inside the tile, x position inside line buffer (dest), x position inside the tile, amount of pixels to render, prio
-        tileidx = tileidx_upper | tileidx_lower;
-        tileidx_lower = (tileidx_lower + 1) & 0x1F; // Wrap around after 32 tiles.
-        video_draw_tile_bg_full(tileidx, yoffset, linebuf_ptr);
+        tileidx = tileidx_base + (tileidx_offset++ & 0x1F);
+        video_draw_tile_bg_full(tileidx, yoffset, region, linebuf_ptr);
         linebuf_ptr += 8;
     }
 
     // draw any pixels that are left
 
     if (xrest != 0) {
-        tileidx = tileidx_upper | tileidx_lower;
-        video_draw_tile_bg_partial(tileidx, yoffset, linebuf_ptr, 0, xrest);
+        tileidx = tileidx_base + (tileidx_offset & 0x1F);
+        video_draw_tile_bg_partial(tileidx, yoffset, region, linebuf_ptr, 0, xrest);
     }
 
 }
@@ -482,10 +361,11 @@ void video_draw_tile_sprite(unsigned tileidx, unsigned yoffset, unsigned xstart,
     unsigned pal_offset = (sprite_attr & SPRITE_ATTR_PALETTE) ? PAL_OFFSET_OBP1 : PAL_OFFSET_OBP0; // Palette offset for sprites.
     unsigned i;
 
-    tileidx = (tileidx << 4) + yoffset + yoffset;
-
     // Respect sprite VERTICAL and HORIZONTAL FLIP attributes
     if (sprite_attr & SPRITE_ATTR_YFLIP) yoffset = (sprite_height - 1) - yoffset;
+
+    tileidx = (tileidx << 4) + yoffset + yoffset;
+
     if (sprite_attr & SPRITE_ATTR_XFLIP) {
         p1 = video_flip_tile_byte(vram[tileidx++]);
         p2 = video_flip_tile_byte(vram[tileidx++]);
@@ -495,8 +375,7 @@ void video_draw_tile_sprite(unsigned tileidx, unsigned yoffset, unsigned xstart,
     }
 
     for (i = xstart; i < count; i++) {
-        newpixel =  ((((p2 & (1 << (7 - i))) >> (7 - i)) << 1)
-                |   ((p1 & (1 << (7 - i))) >> (7 - i)));
+        newpixel = px(i);
 
         if (newpixel && (priority || !linebuf[linexoffset]))
                 linebuf[linexoffset] = newpixel + pal_offset;
@@ -563,7 +442,6 @@ void video_draw_sprites() {
                 // the offset will be big enough to just reach into the correct tile's pixel data anyway.
 
                 if (video_tile_height == 16)    // Ignore bit 0 for 16 pixel high objects (thanks dmg-acid2)
-                    // void video_draw_tile_sprite(unsigned tileidx, unsigned yoffset, unsigned xstart, unsigned linexoffset, unsigned sprite_height, unsigned count, uint8_t sprite_attr) {
                     video_draw_tile_sprite(cursprite->tile & 0xFE, yoffset, xstart, linexoffset, video_tile_height, xcount, cursprite->attr);
                 else
                     video_draw_tile_sprite(cursprite->tile, yoffset, xstart, linexoffset, video_tile_height, xcount, cursprite->attr);
