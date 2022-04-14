@@ -37,8 +37,6 @@ uint16_t ram_extram_mask;
 mem_read_func *mem_reads;
 mem_write_func *mem_writes;
 
-#define dmacheck(x) (sys_dma_busy) ? 0 : x
-
 uint8_t mem_read_rom1(uint16_t addr) { return rom1[addr]; }
 uint8_t mem_read_rom2(uint16_t addr) { return rom2[addr-0x4000]; }
 uint8_t mem_read_vram(uint16_t addr) { return vram[addr-0x8000]; }
@@ -306,6 +304,39 @@ uint8_t cpu_read8_force(uint16_t addr) {
 }
 */
 
+uint8_t cpu_read8(uint16_t addr) {
+
+    // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+
+    return cpu_read8_force(addr);
+
+}
+
+int8_t cpu_read8_signed(uint16_t addr) {
+    // Just a copy of read8 but returns signed int... makes cpu opcode code a bit cleaner
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+    return (int8_t) cpu_read8_force(addr);
+}
+
+uint16_t cpu_read16(uint16_t addr) {
+
+    // If OAM DMA is going on, ignore r/w to addresses below 0xFE00
+
+    if ((sys_dma_busy) && (addr < 0xFE00)) {
+        trace(TRACE_ALL, "!!!! WARNING: Ignored read from %x during DMA!\n", addr);
+        return 0;
+    }
+
+    return cpu_read8_force(addr) | (cpu_read8_force(addr+1) << 8);
+}
 
 void cpu_write8(uint16_t addr, uint8_t data) {
 

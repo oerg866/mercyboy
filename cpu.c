@@ -33,6 +33,9 @@ void cpu_init() {
 
 }
 
+
+volatile uint16_t owo = 0;
+
 void cpu_step() {
 
     op = cpu_read8(pc);
