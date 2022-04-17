@@ -202,7 +202,7 @@ void sys_handle_joypad() {
     // Call backend function for this
 
     sys_buttons_old = sys_buttons_all;
-    sys_update_buttons();
+    sys_buttons_all = s_input_backend->get_buttons();
 
     // Interrupt on high-low transitions
     // refreshing my high school boolean maths... Optimized, equivalent old code below...
