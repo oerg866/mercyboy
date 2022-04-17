@@ -78,12 +78,6 @@ int mem_init(uint8_t *romfile, int fsize);
 void mem_deinit();
 uint8_t* mem_addr(uint16_t addr);
 
-// These force a read without DMA checks. Used by DMA (so we don't block transfers blocked by DMA for the DMA...)
-
-#define cpu_read8_force(addr) mem_reads[addr](addr)
-
-uint16_t cpu_read16_force(uint16_t addr);
-
 // Read / Write function prototypes.
 
 typedef uint8_t (*mem_read_func) (uint16_t addr);
