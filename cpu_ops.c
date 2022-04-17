@@ -16,7 +16,7 @@
 #define ei_di() if (cpu_ei_pending) { cpu_ie = 1; cpu_ei_pending = 0; } \
            else if (cpu_di_pending) { cpu_ie = 0; cpu_di_pending = 0; }
 
-static inline uint16_t ints() {
+static inline void service_ints() {
     // check for interrupts to be serviced and then... service them
     uint8_t ie_mask = (ram_ie & SYS_IF);
 
@@ -31,20 +31,21 @@ static inline uint16_t ints() {
         w16(sp, pc); \
         pc = 0x40 + (id << 3); \
         cycles(12); \
-        return 1; \
-    } \
-    else if (cpu_halted && (SYS_IF & (1 << id))) { return 1; }
-/**************************************************************/
-
-    if (cpu_ie || cpu_halted) {
-        check_and_service_ints(0);
-        check_and_service_ints(1);
-        check_and_service_ints(2);
-        check_and_service_ints(3);
-        check_and_service_ints(4);
+        return; \
     }
-    return 0;
+
+
+/**************************************************************/
+    if (!ie_mask) return;
+
+    check_and_service_ints(0);
+    check_and_service_ints(1);
+    check_and_service_ints(2);
+    check_and_service_ints(3);
+    check_and_service_ints(4);
 }
+
+#define ints() if (cpu_ie) service_ints()
 
 void op_nop() { ipc(1); cycles(4); ei_di(); ints(); }
 
@@ -714,11 +715,9 @@ void op_scf() { f = (f & FLAG_Z) | FLAG_C; ipc(1); cycles(4); ei_di(); ints(); }
 
 void op_halt() {
     ipc(1);
-    cpu_halted = 1;
-    do { cycles(4); } while (!ints());
-    cycles(4);
-    cpu_halted = 0;
+    do { cycles(4); } while (!SYS_IF);
     ei_di();
+    ints();
 }
 
 void op_stop() {
