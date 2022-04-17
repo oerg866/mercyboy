@@ -207,7 +207,7 @@ static inline void alu_daa() {
     uint8_t f_n = f & FLAG_N;
     uint8_t f_c = f & FLAG_C;
     uint8_t f_h = f & FLAG_H;
-    uint8_t f_z = f & FLAG_Z;
+    uint8_t f_z;
 
     if (!f_n) {
         // after addition, adjust if half carry or carry occured
