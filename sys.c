@@ -114,7 +114,7 @@ void sys_dma_cycles(int cycles) {
         trace(TRACE_SYS, "DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
 
         for (i = 0; i < cycles; ++i){
-            oam[sys_dma_counter++] = cpu_read8_force(sys_dma_source + sys_dma_counter);
+            oam[sys_dma_counter++] = cpu_read8(sys_dma_source + sys_dma_counter);
             if (sys_dma_counter == SYS_DMA_LENGTH) {
                 // DMA has ended
                 sys_dma_source = 0;

@@ -53,10 +53,6 @@ void cpu_step();
 
 // MEM.C
 
-uint8_t cpu_read8(uint16_t addr);
-int8_t cpu_read8_signed(uint16_t addr);
-uint16_t cpu_read16(uint16_t addr);
-
 void cpu_write8(uint16_t addr, uint8_t n);
 void cpu_write16(uint16_t addr, uint16_t n);
 
@@ -64,6 +60,10 @@ typedef void (*op_func) (void);
 
 extern const op_func opcodes[256];
 extern const op_func ext_opcodes[256];
+
+#define cpu_read8(addr) (mem_reads[addr](addr))
+#define cpu_read8_signed(addr) ((int8_t) mem_reads[addr](addr))
+#define cpu_read16(addr) (mem_reads[addr](addr) | (mem_reads[addr+1](addr+1) << 8))
 
 // Set 8 bit register reg to n
 #define sr8(reg, n) regs8[reg] = n

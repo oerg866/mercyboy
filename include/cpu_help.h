@@ -23,7 +23,7 @@
 #define sp (regs16[4])
 #define pc (regs16[5])
 
-#define r8(x) cpu_read8_force(x)
+#define r8(x) cpu_read8(x)
 #define r8_signed(x) cpu_read8_signed(x)
 #define w8(x, value) cpu_write8(x, value)
 #define r16(x) cpu_read16(x)
