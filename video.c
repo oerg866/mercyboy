@@ -187,15 +187,14 @@ void video_cycles(int cycles) {
 
     if (video_line_cycles <= 0) {
 
-        if (video_current_line < 143) {
+        video_current_line++;
+
+        if (video_current_line < 144) {
 
             // draw current line if we're in active display
             video_draw_line();
 
-        } else if (video_current_line == 143) {
-
-            // draw last line of active display
-            video_draw_line();
+        } else if (video_current_line == 144) {
 
             // last line was drawn, time to update the framebuffer and req interrupts
             video_frame_done = 1;
@@ -209,8 +208,6 @@ void video_cycles(int cycles) {
                     sys_interrupt_req(INT_LCD);
             }
         }
-
-        video_current_line++;
 
         if (VID_LCDC & LCDC_LCDEN) {
             // If LCD is enabled, update STAT register coincidence flag
@@ -241,6 +238,10 @@ void video_cycles(int cycles) {
         // We're done, reset & draw screen
         video_current_line = 0x00;
         video_frame_cycles = cycles_per_frame + video_frame_cycles;
+
+
+        // draw first line of active display
+        video_draw_line();
 
         // Buffer window Y position
         video_window_y_counter_internal = 0;
