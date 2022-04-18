@@ -714,8 +714,19 @@ void op_ccf() { f = (f & FLAG_Z) | (~f & FLAG_C); ipc(1); cycles(4); ei_di(); in
 void op_scf() { f = (f & FLAG_Z) | FLAG_C; ipc(1); cycles(4); ei_di(); ints(); } // set carry flag, discard N and H
 
 void op_halt() {
+    int32_t cycles_to_idle;
+    int32_t video_idle_cycles;
+    int32_t sys_idle_cycles;
     ipc(1);
-    do { cycles(4); } while (!SYS_IF);
+
+
+    do {
+        video_idle_cycles = video_get_idle_cycle_count();
+        sys_idle_cycles = sys_get_idle_cycle_count();
+        cycles_to_idle = min(sys_idle_cycles, video_idle_cycles);
+        sys_cycles_idle(cycles_to_idle);
+        video_cycles(cycles_to_idle);
+    } while (!SYS_IF);
     ei_di();
     ints();
 }

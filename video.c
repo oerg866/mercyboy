@@ -32,12 +32,12 @@ ____33____33____33____33____33____33__________________3
 
  */
 
-int lines_per_frame;
-int cycles_per_line;
-int cycles_per_frame;
+int32_t lines_per_frame;
+int32_t cycles_per_line;
+int32_t cycles_per_frame;
 
-int video_line_cycles;
-int video_frame_cycles;
+int32_t video_line_cycles;
+int32_t video_frame_cycles;
 
 uint32_t linebuf_final[LCD_WIDTH];
 uint8_t linebuf[LCD_WIDTH];
@@ -134,12 +134,11 @@ void video_update_palette(uint8_t pal_offset, uint8_t reg) {
     s_video_backend->update_palette(pal_offset, new_palette);
 }
 
-void video_cycles(int cycles) {
+void video_cycles(int32_t cycles) {
 
     // Handle STAT register updates
     uint8_t oldstat = VID_STAT;
 
-    cycles = cycles >> 2; // Machine cycles, not CPU cycles
     video_line_cycles -= cycles;
     video_frame_cycles -= cycles;
 
@@ -247,6 +246,10 @@ void video_cycles(int cycles) {
         video_window_y_counter_internal = 0;
         video_window_y_position_internal = VID_WY;
     }
+}
+
+int32_t video_get_idle_cycle_count() {
+    return video_line_cycles;
 }
 
 // Draws a pixel from bytes p1 and p2

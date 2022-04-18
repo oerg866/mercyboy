@@ -22,10 +22,10 @@ uint8_t sys_mbc_bank_bits;
 uint8_t sys_ismbc1 = 0;
 uint8_t sys_ismbc2 = 0;
 
-int16_t sys_div_cycles;
+int32_t sys_div_cycles;
 
-int16_t sys_timer_cycles;
-int16_t sys_timer_interval;
+int32_t sys_timer_cycles;
+int32_t sys_timer_interval;
 
 uint16_t sys_dma_source;
 uint8_t sys_dma_counter;
@@ -33,7 +33,7 @@ uint8_t sys_dma_busy;
 
 uint8_t sys_running = 1;
 
-int16_t sys_timer_interval_list[4] = {
+int32_t sys_timer_interval_list[4] = {
     SYS_TIMER_CYCLES_4096HZ,
     SYS_TIMER_CYCLES_262144HZ,
     SYS_TIMER_CYCLES_65536HZ,
@@ -105,7 +105,7 @@ void sys_run() {
     }
 }
 
-void sys_dma_cycles(int cycles) {
+static inline void sys_cycles_dma(int32_t cycles) {
     unsigned i;
 
     // Process dma cycles, one byte per cycle
@@ -127,11 +127,12 @@ void sys_dma_cycles(int cycles) {
 
 }
 
-void sys_cycles(int cycles) {
+void sys_cycles(int32_t cycles) {
+    // Process DIV / TIMER / DMA cycles, slightly faster version for small cycle numbers.
+
+    sys_cycles_dma(cycles << 2);
 
     // Handle DIV counter which is always active
-
-    cycles = cycles >> 2;   // 4 CPU cycles = 1 Machine Cycle
 
     sys_div_cycles -= cycles;
     if (sys_div_cycles <= 0) {
@@ -139,35 +140,80 @@ void sys_cycles(int cycles) {
         SYS_DIV++;
         sys_div_cycles = SYS_DIV_INTERVAL + sys_div_cycles;
     }
+    // Do timer shenanigans
 
-    if (SYS_TIMER_CFG & SYS_TIMER_ENABLED)  {
+    if (!(SYS_TIMER_CFG & SYS_TIMER_ENABLED))
+        return;
 
-        // Do timer shenanigans
+    sys_timer_cycles -= cycles;
 
-        sys_timer_cycles -= cycles;
+    trace(TRACE_SYS, "sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
 
-        trace(TRACE_SYS, "sys_timer_interval = %i, sys_timer_cycles = %i, sys_timer = %i, sys_timer_mod = %i\n", sys_timer_interval, sys_timer_cycles, SYS_TIMER, SYS_TIMER_MOD);
+    if (sys_timer_cycles <= 0) {
+        // Increment timer when the amount of cycles per "tick" have been reached
 
-        if (sys_timer_cycles <= 0) {
-            // Increment timer when the amount of cycles per "tick" have been reached
+        sys_timer_cycles = sys_timer_interval + sys_timer_cycles; // Reset amount of cycles
 
-            sys_timer_cycles = sys_timer_interval + sys_timer_cycles; // Reset amount of cycles
+        SYS_TIMER++;
 
-            SYS_TIMER++;
+        if (SYS_TIMER == 0) {
+            // Timer overflowed
+            SYS_TIMER = SYS_TIMER_MOD;
+            sys_interrupt_req(INT_TIMER);
 
-            if (SYS_TIMER == 0) {
-                // Timer overflowed
-                SYS_TIMER = SYS_TIMER_MOD;
-                sys_interrupt_req(INT_TIMER);
-
-                trace(TRACE_SYS, "Requesting Timer Interrupt\n");
-            }
-
+            trace(TRACE_SYS, "Requesting Timer Interrupt\n");
         }
+    }
+}
+
+void sys_cycles_idle(int32_t cycles) {
+    // Slow cycles routine for large cycle numbers (for idling in HALT state).
+    int div_cycles_elapsed = SYS_DIV_INTERVAL - sys_div_cycles;
+    int timer_cycles_elapsed;
+    int timer_counts;
+    int timer_counts_per_division;
 
 
+    // Step 1: DMA cycles
+    sys_cycles_dma(cycles << 2);
+
+
+    // Step 2: DIV
+    sys_div_cycles = SYS_DIV_INTERVAL - ((div_cycles_elapsed + cycles) % SYS_DIV_INTERVAL);
+    SYS_DIV += (div_cycles_elapsed + cycles) / SYS_DIV_INTERVAL;
+
+    if (!(SYS_TIMER_CFG & SYS_TIMER_ENABLED))
+        return;
+
+    // Step 3: TIMER
+
+    timer_cycles_elapsed = sys_timer_interval - sys_timer_cycles;
+    timer_counts = (timer_cycles_elapsed + cycles) / sys_timer_interval;
+    timer_counts_per_division = 256 - (int) SYS_TIMER_MOD;
+
+    if (((int) SYS_TIMER + timer_counts) > 255) {
+        sys_interrupt_req(INT_TIMER);
     }
 
+    // Figure out final TIMER & timer_cycles value, keep in mind that the modulo for the timer is the other way around
+    // so we have to consider what the value would be after wrapping back to the TIMER_MOD value, not to 0!!
+    SYS_TIMER = (((SYS_TIMER - SYS_TIMER_MOD) + timer_counts) % timer_counts_per_division) + SYS_TIMER_MOD;
+    sys_timer_cycles = sys_timer_interval - ((timer_cycles_elapsed + cycles) % sys_timer_interval);
+}
+
+
+int32_t sys_get_idle_cycle_count() {
+    // returns maximum amount of cycles the machine can idle in one go before a timer inerrupt occurs
+
+    // Find how many cycles left until the next timer interrupt
+    // time_to_next_timer_increase = sys_timer_cycles;
+    // if SYS_TIMER = 0xFF then that's the max
+    // else it's sys_timer_cycles + (0xFF - SYS_TIMER) * sys_timer_interval
+
+    if (SYS_TIMER_CFG & SYS_TIMER_ENABLED)
+        return sys_timer_cycles + (0xFF - SYS_TIMER) * sys_timer_interval;
+
+    return INT32_MAX;
 }
 
 uint8_t sys_read_joypad() {

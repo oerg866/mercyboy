@@ -59,9 +59,9 @@ extern uint8_t sys_dma_busy;
 extern uint16_t sys_dma_source;
 extern uint8_t sys_dma_counter;
 
-extern int16_t sys_timer_interval;
-extern int16_t sys_timer_interval_list[];
-extern int16_t sys_timer_cycles;
+extern int32_t sys_timer_interval;
+extern int32_t sys_timer_interval_list[];
+extern int32_t sys_timer_cycles;
 
 extern uint8_t sys_ismbc1;
 extern uint8_t sys_ismbc2;
@@ -84,8 +84,12 @@ void sys_deinit();
 
 void sys_run();
 
-void sys_dma_cycles(int cycles);
-void sys_cycles(int cycles);
+//void sys_cycles_dma(int32_t cycles);
+void sys_cycles(int32_t cycles);
+void sys_cycles_idle(int32_t cycles);
+/*void sys_cycles_div(int32_t cycles);
+void sys_cycles_timer(int32_t cycles);*/
+int32_t sys_get_idle_cycle_count();
 void sys_handle_system();
 void sys_update_buttons();
 void sys_handle_joypad();
