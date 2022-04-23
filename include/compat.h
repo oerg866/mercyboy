@@ -93,15 +93,19 @@ extern int main_default(int argc, char *argv[]);
 
 #include <malloc.h>
 #define alloc_mem(x) _halloc(x, 1)
+#define free_mem(x) _hfree(x);
 
 #elif defined(_MSC_VER)
 
 #include <malloc.h>
-#define alloc_mem malloc
+#define alloc_mem(x) malloc(x)
+#define free_mem(x) free(x)
 
 #else
 
-#define alloc_mem malloc
+#include <stdlib.h>
+#define alloc_mem(x) malloc(x)
+#define free_mem(x) free(x)
 
 #endif
 

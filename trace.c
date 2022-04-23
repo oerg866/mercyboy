@@ -3,7 +3,6 @@
 #include "trace.h"
 
 #include <stdio.h>
-#include <stdint.h>
 #include <stdarg.h>
 
 uint8_t     trace_enabled   = 0;    // enabled trace levels
@@ -35,19 +34,21 @@ void trace_deinit() {
 
 void trace(uint8_t trace_lvl, char* fmt, ...) {
     char out_string[1024];
+    va_list ap;
+    uint8_t i;
+
     if (trace_enabled & trace_lvl) {
-        va_list ap;
         va_start(ap, fmt);
-        uint8_t i;
+
         for (i = 0; i < 8; i++) {
             if (trace_lvl & 1) break;
             trace_lvl = trace_lvl >> 1;
         }
         vsprintf(out_string, fmt, ap);
-        if (trace_file) 
+        if (trace_file)
             fprintf(trace_file, "%s %s", trace_strings[i], out_string);
 
-        if (trace_print) 
+        if (trace_print)
             print_msg("%s %s", trace_strings[i], out_string);
 
         va_end(ap);

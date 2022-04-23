@@ -64,7 +64,7 @@ int mem_init(uint8_t *file, int fsize) {
     char title[0x0F];
     unsigned long i;
 
-	romfile = file;
+    romfile = file;
     romsize = fsize;
 
     if (fsize > 0x4000) fsize = 0x4000;
@@ -241,7 +241,7 @@ void mem_update_banks_mbc1() {
         ram2 = &ram_ext[0];
     }
 
-	romaddr = tmp_bank << 14;
+    romaddr = tmp_bank << 14;
 
     trace(TRACE_MBC, "New MBC ROM Address set: %08x (%02x), max %08x \n", romaddr, tmp_bank, romsize - 0x4000);
 
@@ -440,7 +440,7 @@ void cpu_write8(uint16_t addr, uint8_t data) {
 
 #ifdef DEBUG
         if (addr == 0xFF02 && data == 0x81)
-            print_msg("%c", cpu_read8_force(0xFF01));
+            print_msg("%c", ram_io[0x01]); // Print character at 0xFF01
 
         if (addr == MEM_SCY)
             trace(TRACE_SYS, "SCY Write: %02x\n", data);

@@ -3,6 +3,7 @@
 #include "trace.h"
 
 #include <stdio.h>
+#include <string.h>
 
 /* Template magic in C! Ha ha ...
  * Iterates through backends of arbitrary nature and tries to find one by name if given */

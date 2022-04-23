@@ -7,6 +7,8 @@
 #include "trace.h"
 #include "mem.h"
 
+#include "compat.h"
+
 // Helper macros to check pending interrupt enable / disable and processing actions.
 // Put into macros because there are 3 instructions where this doesn't occur
 // and we don't want to waste cycles on every instruction to check if this is
@@ -723,7 +725,7 @@ void op_halt() {
     do {
         video_idle_cycles = video_get_idle_cycle_count();
         sys_idle_cycles = sys_get_idle_cycle_count();
-        cycles_to_idle = min(sys_idle_cycles, video_idle_cycles);
+        cycles_to_idle = MIN(sys_idle_cycles, video_idle_cycles);
         sys_cycles_idle(cycles_to_idle);
         video_cycles(cycles_to_idle);
     } while (!SYS_IF);
