@@ -49,8 +49,7 @@ void sys_init(input_backend_t *backend) {
 
     s_input_backend = backend;
 
-    if (s_input_backend->init)
-        s_input_backend->init();
+    s_input_backend->init();
 
     sys_carttype = CT_ROMONLY;
     sys_mbc1_s = MBC1_2048_8;
@@ -73,8 +72,7 @@ void sys_init(input_backend_t *backend) {
 }
 
 void sys_deinit() {
-    if (s_input_backend->deinit)
-        s_input_backend->deinit();
+    s_input_backend->deinit();
 }
 
 void sys_run() {
@@ -106,7 +104,7 @@ void sys_run() {
 }
 
 static inline void sys_cycles_dma(int32_t cycles) {
-    unsigned i;
+    int i;
 
     // Process dma cycles, one byte per cycle
     if (sys_dma_busy) {
@@ -114,7 +112,8 @@ static inline void sys_cycles_dma(int32_t cycles) {
         trace(TRACE_SYS, "DMA copying %x bytes from %x\n", cycles, sys_dma_source + sys_dma_counter);
 
         for (i = 0; i < cycles; ++i){
-            oam[sys_dma_counter++] = cpu_read8(sys_dma_source + sys_dma_counter);
+            oam[sys_dma_counter] = cpu_read8(sys_dma_source + sys_dma_counter);
+            sys_dma_counter++;
             if (sys_dma_counter == SYS_DMA_LENGTH) {
                 // DMA has ended
                 sys_dma_source = 0;

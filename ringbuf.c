@@ -2,6 +2,8 @@
 
 #include "trace.h"
 
+#include <string.h>
+
 ringbuffer *ringbuffer_create(uint32_t buf_size, uint32_t num_buf) {
     ringbuffer *ret = NULL;
 
