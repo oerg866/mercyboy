@@ -1,9 +1,7 @@
 # Building MercyBoy
 
-
 ## Planned build environments:
 
-- Windows NT 3.x
 - Windows 3.1 / Visual C++ 1.52
 - MS-DOS / DJGPP or OpenWatcom
 - Old Linux (SDL1)
@@ -44,6 +42,28 @@ This compiler supports building for several different architectures. I don't kno
 - On the file type filter, select `.mak` files.
 - Select `MBOY98.MAK`
 - Build the project as required. Output files will be in `MB_REL` or `MB_DEBUG` for release and debug configurations respectively.
+
+**Note: This build only supports these backends:**
+
+- `a_wvout`
+- `v_gdi`
+- `i_win32`
+
+## Windows NT 3.1 / Visual C++ 1.0 (1993)
+
+- Run `SETUP.BAT` in / from the `_vc1_w32` platform directory.
+
+  This copies `MERCYBOY.MAK` to the root directory and creates a dummy `SDL2/SDL.h`. This is due to a bug in makefile parsing where it
+  ignores the `ifdef` guards and assumes this file is a dependency of `a_sdl2` which must be built.
+- Open `Microsoft Visual C++`
+- Click `Project` - `Open` and select `MERCYBOY.MAK`.
+- To change the project configuration (`Debug` or `Release`) select `Options` - `Project`.
+- Click `Project` - `Build MERCYBOY.EXE` to build the project.
+- The root directory will contain the build output (`MERCYBOY.EXE`).
+
+**Note: If you are running the executable on Windows NT 3.1, you must make sure to have at least 5 audio buffers of 2048 bytes.**
+
+*TODO: Replace this by actual configuration options and maybe even OS detection to figure this out.*
 
 **Note: This build only supports these backends:**
 
