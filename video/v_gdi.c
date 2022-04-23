@@ -23,10 +23,8 @@ static BITMAPINFO bmi;
 static const uint16_t bw_palette_16[4] = {0xFFFF, 0xAD55, 0x632C, 0x0000};
 static const uint32_t bw_palette_32[4] = {0x00ffffff, 0x00aaaaaa, 0x00666666, 0x00000000};
 
-hyper s_last_frame_count_time = 0;
+static uint32_t s_last_frame_count_time = 0;
 static uint16_t frame_count = 0;
-
-
 
 
 union framebuffer
@@ -78,17 +76,18 @@ video_backend_t v_gdi =
 static char s_fps_text[256];
 
 void doFPScount() {
+
 #ifndef __WIN16__
     FILETIME tmp_time;
-    hyper current_time;
+    uint32_t current_time = GetTickCount ();
     double fps;
-    GetSystemTimeAsFileTime(&tmp_time);
-    current_time = ((hyper) tmp_time.dwHighDateTime << 32) | (hyper) tmp_time.dwLowDateTime;
-    fps = 1.0 / ((double) (current_time - s_last_frame_count_time) / 1e7 / (double) FRAME_COUNT_INTERVAL);
+
+    fps = 1.0 / ((double) (current_time - s_last_frame_count_time) / 1000 / (double) FRAME_COUNT_INTERVAL);
     s_last_frame_count_time = current_time;
     sprintf(s_fps_text, "MercyBoy: FPS: %2f", fps);
-    SetWindowTextA(hwnd, s_fps_text);
+    SetWindowText(hwnd, s_fps_text);
 #endif
+
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
