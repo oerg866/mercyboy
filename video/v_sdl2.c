@@ -27,6 +27,12 @@ static const uint32_t bw_palette[4] = {0xffffffff,
                                        0xff000000};
 
 int v_sdl2_init(video_config* cfg) {
+
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        print_msg("Error initializing SDL.\n");
+        return -1;
+    }
+
     video_window = SDL_CreateWindow("MercyBoy",
                                     SDL_WINDOWPOS_CENTERED,
                                     SDL_WINDOWPOS_CENTERED,
@@ -67,7 +73,8 @@ int v_sdl2_init(video_config* cfg) {
 }
 
 void v_sdl2_deinit() {
-    // Nothing here yet
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
 }
 
 

@@ -33,11 +33,14 @@ uint8_t i_sdl2_get_buttons() {
             | ((~state[keys[PAD_A]] & 0x01)     << 0);
 }
 
+void i_sdl2_init() {}
+void i_sdl2_deinit() {}
+
 const input_backend_t i_sdl2 = {
     NAME,                   // name
     1,                      // present
-    NULL,                   // init
-    NULL,                   // deinit
+    i_sdl2_init,            // init
+    i_sdl2_deinit,          // deinit
     &i_sdl2_get_buttons     // get_buttons
 };
 #else

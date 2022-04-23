@@ -47,6 +47,11 @@ int a_sdl2_init(audio_config *cfg) {
     // Initialize SDL2 Audio Backend
     // Audio Spec Structure with format detaisl
 
+    if (SDL_Init(SDL_INIT_AUDIO) != 0) {
+        print_msg("Error initializing SDL.\n");
+        return -1;
+    }
+
     s_config = cfg;
 
     s_audio_spec.freq = cfg->sample_rate;
@@ -92,6 +97,7 @@ int a_sdl2_init(audio_config *cfg) {
 }
 
 void a_sdl2_deinit() {
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
     ringbuffer_destroy(s_ringbuf);
 }
 

@@ -35,12 +35,16 @@ uint8_t i_win32_get_buttons() {
             | ((~GetAsyncKeyState(keys[PAD_A]) & (1 << 15))     >> (15 - 0));
 }
 
+void i_win32_init() { } // These do nothing.
+void i_win32_deinit() { } // These do nothing.
+
+
 const input_backend_t i_win32 = {
     NAME,                   // name
     1,                      // present
-    NULL,                   // init
-    NULL,                   // deinit
-    i_win32_get_buttons    // get_buttons
+    i_win32_init,           // init
+    i_win32_deinit,         // deinit
+    i_win32_get_buttons     // get_buttons
 };
 #else
 const input_backend_t i_win32 = { NAME, 0 };
