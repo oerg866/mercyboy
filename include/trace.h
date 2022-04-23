@@ -16,12 +16,13 @@
 
 #include "compat.h"
 
-#if defined(__WIN16__) || (defined(_MSVC_VER) && _MSVC_VER <= 1000)
+#if defined(__WIN16__) || (defined(_MSC_VER) && _MSC_VER <= 1000)
 static inline void print_msg(char* fmt, ...) {
+#include <stdarg.h>
     char out_string[1024];
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(out_string, sizeof(out_string), fmt, ap);
+    _vsnprintf(out_string, sizeof(out_string), fmt, ap);
     OutputDebugStringA(out_string);
     va_end(ap);
 }
