@@ -33,14 +33,11 @@ void cpu_init() {
 
 }
 
-
-volatile uint16_t owo = 0;
-
 void cpu_step() {
 
     op = cpu_read8(pc);
 
-    if (owo) printf("tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
+    trace(TRACE_CPU, "tac: %02x if: %02x ime: %02x, ie: %02x, pc: %04x af: %04x bc: %04x de: %04x hl: %04x sp: %04x op: %02x ly: %02x\n",
     ram_io[0x07], SYS_IF, cpu_ie, ram_ie, pc, af, bc, de, hl, sp, op, video_get_line());
 
     // Jump Table
