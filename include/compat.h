@@ -5,22 +5,31 @@
  *
  *  Supported platforms:
  *
- *       GCC (32/64-Bit)
- *       Microsoft Visual C++ 1.52 (16-Bit)
+ *      GCC (32/64-Bit)
+ *      Microsoft Visual C++ 1.0 (32-Bit)
+ *      Microsoft Visual C++ 4.2 (32-Bit)
  *
- *  Maybe supported?
- *
- *       Microsoft Visual C++ 4.2 (32-Bit)
+ *  Planned:
+ *      OpenWatcom / DJGPP (DOS32)
+ *      Microsoft Visual C++ 1.52 (16-Bit)
  */
 
 #ifndef COMPAT_H
 #define COMPAT_H
 
+#define VERSION_STRING "0.x"
+
+// Figure out platform variables for Win16 and really old MSC compilers
+
+#if defined(_MSC_VER) && !defined(_WIN32)
+#define __WIN16__
+#endif
+
+#if defined(_MSC_VER) && MSC_VER <= 800
+#define __OLDMSC
+#endif
+
 // Main function :-)
-
-//#undef print_msg
-//#define print_msg OutputDebugString
-
 extern int main_default(int argc, char *argv[]);
 
 // MSVC windows.h include
@@ -34,6 +43,8 @@ extern int main_default(int argc, char *argv[]);
  */
 
 #if defined (__WIN16__) || (defined (_MSC_VER) && _MSC_VER < 1300)
+
+#include <limits.h>
 
 #define int8_t      signed char
 #define int16_t     signed short
@@ -83,6 +94,11 @@ extern int main_default(int argc, char *argv[]);
 #include <malloc.h>
 #define alloc_mem(x) _halloc(x, 1)
 
+#elif defined(_MSC_VER)
+
+#include <malloc.h>
+#define alloc_mem malloc
+
 #else
 
 #define alloc_mem malloc
@@ -129,7 +145,7 @@ inline void sleep_ms(int ms) {
  *  Byteswapping
  */
 
-#if defined(__WIN32__) || (defined(_MSVC_VER) && _MSVC_VER >= 1300)
+#if defined(__WIN32__) || (defined(_MSC_VER) && _MSC_VER >= 1300)
 
 /* generic modern Win32 implementation */
 
