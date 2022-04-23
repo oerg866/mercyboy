@@ -38,7 +38,7 @@ You can also run `mingw32-make TARGET=WIN9X` to compile without SDL2 support. De
 
 This compiler supports building for several different architectures. I don't know how well this works, but be aware that for now MercyBoy only works on Little Endian CPU architectures.
 
-- Copy `MBOY98.MAK` from the `_msvc42` directory into the root folder.
+- Copy `MBOY98.MAK` from the `_vc42` platform directory into the root folder.
 - Open `Microsoft Development Studio`
 - Click `File` - `Open Workspace`
 - On the file type filter, select `.mak` files.

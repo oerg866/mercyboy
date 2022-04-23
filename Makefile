@@ -46,8 +46,10 @@ ifeq ($(MAKE),mingw32-make)
 	CC = gcc
 endif
 
+# Generic main.c for all compilers except those who refuse to acknowledge argc/argv
+MAIN_FILES = platform/_generic.c platform/main_def.c
 
-SOURCES = $(wildcard *.c) $(wildcard audio/*.c) $(wildcard input/*.c) $(wildcard video/*.c)
+SOURCES = $(MAIN_FILES) $(wildcard *.c) $(wildcard audio/*.c) $(wildcard input/*.c) $(wildcard video/*.c)
 HEADERS = $(wildcard include/*.h) $(wildcard audio/*.h) $(wildcard input/*.h) $(wildcard video/*.h)
 
 INCLUDES = -Iinclude -Ibackends

@@ -2,9 +2,11 @@
 
 #include "compat.h"
 
-// Handle the need for WinMain for MSC/MSVC.
+/*
+ * Generic main / WinMain for almost all compilers out there.
+ */
 
-#if defined (_MSC_VER) || defined (_MSVC_VER)
+#if defined (_MSC_VER)
 
 int APIENTRY WinMain(HANDLE hInstance, HANDLE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     return main_default(__argc, __argv);

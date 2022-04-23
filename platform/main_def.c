@@ -13,6 +13,12 @@
 
 #include "backends.h"
 
+/*
+ * Simple main function implementation.
+ * For pc-ish systems that load files from a file system.
+ * If it is used, it is called from the actual platform-specific main function.
+ */
+
 static audio_backend_t *s_audio_backend = NULL;
 static video_backend_t *s_video_backend = NULL;
 static input_backend_t *s_input_backend = NULL;
@@ -59,7 +65,6 @@ int main_default (int argc, char *argv[])
     s_video_backend = get_video_backend(NULL);
     s_input_backend = get_input_backend(NULL);
 
-
     sys_init(s_input_backend);
 
 
@@ -83,10 +88,6 @@ int main_default (int argc, char *argv[])
     audio_deinit();
     video_deinit();
     mem_deinit();
-
-#ifdef USING_SDL
-    SDL_Quit();
-#endif
 
     return result;
 }
