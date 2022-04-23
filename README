@@ -1,16 +1,16 @@
 Hello!
 
-This is 'mercyboy', a Nintendo Gameboy emulator I've started as a little side 
+This is 'mercyboy', a Nintendo Gameboy emulator I've started as a little side
 project to mess with emulation, refresh plain C knowledge and tinker around
-with SDL. 
+with SDL.
 
-The purpose of this is to be simple and small, I'll probably make it run on 
+The purpose of this is to be simple and small, I'll probably make it run on
 DOS at some point in time.
 
 The license of choice is CC-BY-NC.
 
-It's a QT Creator / QMake project for now, because I like fancy IDEs and am 
-lazy.
+This can be built using several different facilities (make, QMake, platform-
+specific toolchains...), check out docs/BUILDING.md!
 
 Have fun!
 
