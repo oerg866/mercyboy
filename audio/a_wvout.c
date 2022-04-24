@@ -155,7 +155,7 @@ audio_buffer_status a_waveout_play_buffer(uint8_t *buffer, uint32_t length) {
             tmp = header->dwFlags;
             LeaveCriticalSection(&s_lock);
             yield();
-        } while (tmp & WHDR_PREPARED == 0);
+        } while (tmp != WHDR_PREPARED);
 
 
         // Get bytes left in this buffer.
