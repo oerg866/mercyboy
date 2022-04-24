@@ -10,7 +10,7 @@
 
 #include <mmsystem.h>
 
-#ifndef WAVEFORMAT
+#ifndef _WAVEFORMATEX_
 typedef PCMWAVEFORMAT WAVEFORMAT_T;
 #else
 typedef WAVEFORMATEX WAVEFORMAT_T;
@@ -39,7 +39,7 @@ static uint32_t s_buffer_size;
 static CRITICAL_SECTION s_lock;
 
 void a_waveout_cfg_to_waveformat(audio_config *cfg, WAVEFORMAT_T *out) {
-#ifdef WAVEFORMATEX
+#ifdef _WAVEFORMATEX_
     WAVEFORMAT_T *waveformat = out;
     waveformat->wBitsPerSample = cfg->bits_per_sample;
     waveformat->cbSize = 0;
@@ -109,7 +109,7 @@ int a_waveout_init(audio_config *cfg) {
 
     for (i = 0; i < BUFFER_COUNT; ++i) {
         s_wavehdrs[i].dwBufferLength = s_buffer_size;
-        s_wavehdrs[i].lpData = &s_buffer_pool[s_buffer_size * i];
+        s_wavehdrs[i].lpData = (char*) &s_buffer_pool[s_buffer_size * i];
         s_wavehdrs[i].dwUser = i;
         waveOutPrepareHeader(s_waveout_handle, &s_wavehdrs[i], sizeof(WAVEHDR));
     }
@@ -139,12 +139,8 @@ void a_waveout_deinit(void) {
 
 audio_buffer_status a_waveout_play_buffer(uint8_t *buffer, uint32_t length) {
     WAVEHDR *header = NULL;
-    MMRESULT ret = 0;
-    volatile int r = 0;
-    int w = 0;
     uint8_t *dst = NULL;
     uint8_t *src = buffer;
-    uint32_t bytesToCopy = 0;
     uint32_t free_space;
     DWORD tmp = 0;
 
@@ -173,8 +169,7 @@ audio_buffer_status a_waveout_play_buffer(uint8_t *buffer, uint32_t length) {
             break;
         } else {
             memcpy (dst, src, free_space);
-            header = &s_wavehdrs[s_write_index];
-            ret = waveOutWrite(s_waveout_handle, header, sizeof(WAVEHDR));
+            waveOutWrite(s_waveout_handle, header, sizeof(WAVEHDR));
             length -= free_space;
             src += free_space;
             s_write_pos = 0;
