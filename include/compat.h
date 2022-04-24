@@ -122,13 +122,18 @@ extern int main_default(int argc, char *argv[]);
 // Sleep & Yield function
 
 #if defined (__WIN16__) || defined(__WIN32__) || defined(_WIN32)
+
 #define sleep_ms(x) Sleep(x)
 #define yield() Sleep(0)
+
+#elif defined(__DJGPP__)
+
+static inline void sleep_ms() {}
+static inline void yield() {}
+
 #else
 
-inline void sleep_ms(int ms) {
-
-}
+static inline void sleep_ms(int ms) {}
 
 #include <sched.h>
 #define yield sched_yield
