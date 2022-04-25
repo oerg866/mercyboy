@@ -14,6 +14,7 @@
 #include <dpmi.h>
 #include <pc.h>
 #include <sys/nearptr.h>
+#include <signal.h>
 
 #include "console.h"
 #include "video.h"
@@ -50,6 +51,9 @@ static uint8_t old_mode = 0;
 #define X_OFFSET ((VGA_WIDTH-LCD_WIDTH)/2)
 #define Y_OFFSET ((VGA_HEIGHT-LCD_HEIGHT)/2)
 
+// Signal that indicates that the emulator should shutdown
+static volatile uint8_t v_dosvga_quit_signal = 0;
+
 static void v_dosvga_read_palette(vgacolor *pal, uint8_t index, int length) {
     int i;
     outportb(0x3c7, index); // Signal a read from VGA pal
@@ -70,6 +74,9 @@ static void v_dosvga_write_palette(vgacolor *pal, uint8_t index, int length) {
     }
 }
 
+void v_dosvga_sigint_handler(int sig) {
+    v_dosvga_quit_signal = 1;
+    print_msg("Quit registered");
 }
 
 int v_dosvga_init(video_config* cfg) {
@@ -99,6 +106,10 @@ int v_dosvga_init(video_config* cfg) {
     // Make the background guaranteed black, set palette and clear the screen
     _SETCOLOR(BG_COLOR_INDEX, 0x00, 0x00, 0x00);
     memset(screen, BG_COLOR_INDEX, 320*200);
+
+    // Set abort handler (DJGPP specific hack here)
+    signal(SIGINT, v_dosvga_sigint_handler);
+
 
     return 0;
 }
@@ -146,8 +157,10 @@ void v_dosvga_frame_done() {
 }
 
 video_backend_status v_dosvga_event_handler() {
-    video_backend_status ret = VIDEO_BACKEND_RUNNING;
-    return ret;
+    if (v_dosvga_quit_signal) {
+        return VIDEO_BACKEND_EXIT;
+    }
+    return VIDEO_BACKEND_RUNNING;
 }
 
 const video_backend_t v_dosvga = {

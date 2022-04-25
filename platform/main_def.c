@@ -81,12 +81,9 @@ int main_default (int argc, char *argv[])
 
     sys_run();
 
-
-    free(romfile);
-
+    video_deinit();
     sys_deinit();
     audio_deinit();
-    video_deinit();
     mem_deinit();
 
     return result;

@@ -6,6 +6,7 @@
 
 #include <dpmi.h>
 #include <pc.h>
+#include <signal.h>
 
 #include "compat.h"
 #include "console.h"
@@ -21,6 +22,8 @@ int32_t keys[8] = {
     0x50,   // DOWN ARROW
 };
 
+#define QUIT_SCANCODE 0x01 // Escape key quits the emulator
+
 static volatile uint8_t pressed_keys[256];
 static _go32_dpmi_seginfo old_kb_ivec;
 static _go32_dpmi_seginfo new_kb_ivec;
@@ -28,6 +31,10 @@ static _go32_dpmi_seginfo new_kb_ivec;
 void i_dos32_kb_interrupt() {
     uint8_t key = inportb(0x60);
     static bool extended = false;
+
+    // Raise SIGINT, we hope there's a handler for it (v_dosvga registers one (HACKY))
+    if (key == QUIT_SCANCODE)
+        raise(SIGINT);
 
     if (key >= 0xE0) {
         extended = true;
