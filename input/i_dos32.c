@@ -16,10 +16,10 @@ int32_t keys[8] = {
     0x1F,   // S
     0x39,   // SPACE
     0x1C,   // ENTER
-    0x4D,   // RIGHT ARROW
-    0x4B,   // LEFT ARROW
-    0x48,   // UP ARROW
-    0x50,   // DOWN ARROW
+    0x4D | 0x80,   // RIGHT ARROW
+    0x4B | 0x80,   // LEFT ARROW
+    0x48 | 0x80,   // UP ARROW
+    0x50 | 0x80,   // DOWN ARROW
 };
 
 #define QUIT_SCANCODE 0x01 // Escape key quits the emulator
