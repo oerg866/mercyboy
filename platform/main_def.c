@@ -7,7 +7,7 @@
 #include "mem.h"
 #include "video.h"
 #include "audio.h"
-#include "trace.h"
+#include "console.h"
 
 #include "string.h"
 

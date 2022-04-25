@@ -1,6 +1,6 @@
 #include "backends.h"
 #include "bendlist.h"
-#include "trace.h"
+#include "console.h"
 
 #include <stdio.h>
 #include <string.h>

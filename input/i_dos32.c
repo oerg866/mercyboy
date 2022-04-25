@@ -8,7 +8,7 @@
 #include <pc.h>
 
 #include "compat.h"
-#include "trace.h"
+#include "console.h"
 
 int32_t keys[8] = {
     0x1E,   // A
@@ -32,6 +32,7 @@ void i_dos32_kb_interrupt() {
     if (key >= 0xE0) {
         extended = true;
     } else {
+        print_msg("EXTENDED: %u, KEY: %02x\n", (unsigned) extended, (unsigned) key);
         if (extended) {
             pressed_keys[key | 0x80] = (~key) >> 7;
             extended = false;
@@ -66,6 +67,7 @@ void i_dos32_deinit() {
     // We must restore the old interrupt vector, this is crucial!
     _go32_dpmi_set_protected_mode_interrupt_vector(0x08 + 1, &old_kb_ivec);
     _go32_dpmi_free_iret_wrapper(&new_kb_ivec);
+    printf("%s successful!\n", __func__);
 }
 
 uint8_t  i_dos32_get_buttons() {

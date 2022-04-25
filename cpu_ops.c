@@ -4,6 +4,7 @@
 
 #include "sys.h"
 #include "video.h"
+#include "console.h"
 #include "trace.h"
 #include "mem.h"
 

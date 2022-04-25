@@ -1,6 +1,6 @@
 #include "ringbuf.h"
 
-#include "trace.h"
+#include "console.h"
 
 #include <string.h>
 

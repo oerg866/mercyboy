@@ -9,6 +9,7 @@
 #include "audio.h"
 #include "video.h"
 #include "trace.h"
+#include "console.h"
 
 uint8_t *romfile;
 uint8_t *addonram;
@@ -243,12 +244,12 @@ void mem_update_banks_mbc1() {
 
     romaddr = tmp_bank << 14;
 
-    trace(TRACE_MBC, "New MBC ROM Address set: %08x (%02x), max %08x \n", romaddr, tmp_bank, romsize - 0x4000);
+    trace(TRACE_MBC, "New MBC ROM Address set: %08x (%02x), max %08x \n", (unsigned) romaddr, tmp_bank, (unsigned) romsize - 0x4000);
 
     rom2 = &romfile[romaddr];   // Set new bank window
 
     if (romaddr > (romsize - 0x4000)) {
-        print_msg("MBC bank OUTSIDE ROM area %08x (max. %08x)! Forcing crash...", romaddr, romsize - 0x4000);
+        print_msg("MBC bank OUTSIDE ROM area %08x (max. %08x)! Forcing crash...", (unsigned) romaddr, (unsigned) romsize - 0x4000);
         memset(rom1, 0xff, 0x8000);
         rom2 = rom1;
     }

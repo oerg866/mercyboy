@@ -2,6 +2,8 @@
 
 #include "trace.h"
 
+#include "console.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 

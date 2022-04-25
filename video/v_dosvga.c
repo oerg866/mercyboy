@@ -15,7 +15,7 @@
 #include <pc.h>
 #include <sys/nearptr.h>
 
-#include "trace.h"
+#include "console.h"
 #include "video.h"
 
 #pragma pack(1)
