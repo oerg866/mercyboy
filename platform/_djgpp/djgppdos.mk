@@ -6,7 +6,7 @@ USE_SDL2 := 1
 
 EXECUTABLE = mercyboy.exe
 
-DEFS = -DVIDEO_DOSVGA -DINPUT_DOS32 -DAUDIO_SB16
+DEFS = -DVIDEO_DOSVGA -DINPUT_DOS32 -DAUDIO_SB16DJ
 
 # Generic main.c for all compilers except those who refuse to acknowledge argc/argv
 MAIN_FILES = platform/_generic.c platform/main_def.c

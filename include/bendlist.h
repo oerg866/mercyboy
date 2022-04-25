@@ -8,6 +8,7 @@
 // extern audio_backend_t a_dsound7;
 extern audio_backend_t a_sdl2;
 extern audio_backend_t a_waveout;
+extern audio_backend_t a_sb16dj;
 extern audio_backend_t a_dummy;
 
 // extern input_backend_t i_dinput;
@@ -24,6 +25,7 @@ extern video_backend_t v_dosvga;
 audio_backend_t *const audio_backends[] = {
     &a_sdl2,
     &a_waveout,
+    &a_sb16dj,
 
     // Lowest priority, dummy backend...
     &a_dummy,
