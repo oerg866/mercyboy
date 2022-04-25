@@ -128,7 +128,9 @@ extern int main_default(int argc, char *argv[]);
 
 #elif defined(__DJGPP__)
 
-static inline void sleep_ms() {}
+#include <dos.h>
+
+#define sleep_ms(x) delay(x)
 static inline void yield() {}
 
 #else
