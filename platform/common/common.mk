@@ -1,6 +1,6 @@
 # MercyBoy makefile common variables
 
-CFLAGS = -Wall -Wextra -Wfatal-errors -Wno-unused-parameter -Wno-missing-field-initializers -Os
+CFLAGS = -Wall -Wextra -Wfatal-errors -Wno-unused-parameter -Wno-missing-field-initializers -O2
 LIBS = -lm
 
 ifeq ($(DEBUG),1)
