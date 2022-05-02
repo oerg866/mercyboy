@@ -16,7 +16,7 @@ static inline void print_msg(char* fmt, ...) {
 
 #include <pc.h>
 #include <stdio.h>
-#define print_msg(...) { printf(__VA_ARGS__); }
+#define print_msg(...) { ScreenSetCursor (0, 0); printf(__VA_ARGS__); }
 
 #else
 
