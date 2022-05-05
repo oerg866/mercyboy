@@ -152,34 +152,6 @@ static inline void sleep_ms(int ms) {}
 
 #endif
 
-/*
- *  Byteswapping
- */
-
-#if defined(__WIN32__) || (defined(_MSC_VER) && _MSC_VER >= 1300)
-
-/* generic modern Win32 implementation */
-
-#include <stdlib.h>
-#define bs _byteswap_ushort
-
-#elif defined(__linux__)
-
-/* Linux implementation */
-
-#include <byteswap.h>
-#define bs bswap_16
-
-#else
-
-/* Machine independent implementation (e.g. win16 doesn't seem to have anything for this) */
-
-inline uint16_t bs (uint16_t val) {
-    return (val << 8) | (val >> 8);
-}
-
-#endif
-
 /* MIN / MAX */
 
 #ifndef MAX
