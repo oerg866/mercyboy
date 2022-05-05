@@ -2,7 +2,7 @@
 
 #define NAME "a_sb16dj"
 
-#if (1)
+#ifdef AUDIO_SB16DJ
 
 /*
  *  Audio Backend Implementation for SoundBlaster (16) cards
