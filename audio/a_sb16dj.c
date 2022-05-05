@@ -164,6 +164,12 @@ static void _hwinit() {
     uint32_t linear_addr;
     uint8_t *clearbuf;
 
+    /* TODO - TIME CONSTANT CALCULATION, NEEDED FOR SB < 16 CARDS!!
+    // Time constant, since we want to be compatible with SB 1.x which doesn't support command 0x41!
+    uint32_t time_constant = 256UL - (1000000UL / (s_audio_config->channels * s_audio_config->sample_rate));
+
+    printf("Time constant is %lu (0x%02x)\n", time_constant, time_constant);
+    */
     _writedsp(DSP_CMD_SET_RATE);
     _writedsp(s_audio_config->sample_rate >> 8);
     _writedsp(s_audio_config->sample_rate & 0xff);
