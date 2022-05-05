@@ -3,6 +3,10 @@
 CFLAGS = -Wall -Wextra -Wfatal-errors -Wno-unused-parameter -Wno-missing-field-initializers -O2
 LIBS = -lm
 
+ifeq ($(BENCHMARK),1)
+	CFLAGS += -DBENCHMARK
+endif
+
 ifeq ($(DEBUG),1)
 	CFLAGS += -g -DDEBUG
 endif
