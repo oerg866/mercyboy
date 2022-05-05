@@ -31,9 +31,4 @@
 
 #define nextbyte r8(pc+1)
 
-#define cycles(n) \
-   /*sys_cycles_dma(n);*/ \
-    sys_cycles(n>>2); \
-   /* if (SYS_TIMER_CFG & SYS_TIMER_ENABLED) sys_cycles_timer(n>>2);*/ \
-    video_cycles(n>>2);
 #endif

@@ -17,7 +17,8 @@ uint8_t     cpu_ie;
 uint8_t     cpu_ei_pending;
 uint8_t     cpu_di_pending;
 
-uint8_t     cpu_halted;
+uint32_t    cpu_idle_cycles_max = 0;
+uint32_t    cpu_idle_cycles = 0;
 
 #include "cpu_alu.h"
 
@@ -29,7 +30,6 @@ void cpu_init() {
     cpu_ie = 0;
     cpu_ei_pending = 0;
     cpu_di_pending = 0;
-    cpu_halted = 0;
 
 }
 

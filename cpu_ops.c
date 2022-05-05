@@ -10,6 +10,29 @@
 
 #include "compat.h"
 
+
+
+static inline void cpu_reset_idle_cycles_max()
+/* Re-calculates the amount of time the CPU can run before having to process system / video cycles. */
+{
+    uint32_t video_idle_cycles = video_get_idle_cycle_count();
+    uint32_t sys_idle_cycles = sys_get_idle_cycle_count();
+    cpu_idle_cycles_max = MIN(sys_idle_cycles, video_idle_cycles);
+}
+
+static inline void cycles(uint32_t n)
+/* Increments "idle" cycle counter by n amount, and if we're done idling we
+   take a leap and process them all at once. */
+{
+    cpu_idle_cycles += n;
+    if (cpu_idle_cycles >= cpu_idle_cycles_max) {
+        sys_cycles_idle(cpu_idle_cycles);
+        video_cycles(cpu_idle_cycles);
+        cpu_idle_cycles -= cpu_idle_cycles_max;
+        cpu_reset_idle_cycles_max();
+    }
+}
+
 // Helper macros to check pending interrupt enable / disable and processing actions.
 // Put into macros because there are 3 instructions where this doesn't occur
 // and we don't want to waste cycles on every instruction to check if this is
@@ -48,7 +71,7 @@ static inline void service_ints() {
     check_and_service_ints(4);
 }
 
-#define ints() if (cpu_ie) service_ints()
+#define ints() { if (cpu_ie) service_ints(); }
 
 void op_nop() { ipc(1); cycles(4); ei_di(); ints(); }
 
@@ -695,7 +718,7 @@ void op_rst_38() { op_rst(0x38); }
 
 void op_ret() { pc = r16(sp); sp += 2; cycles(16); ei_di(); ints(); }
 
-#define op_ret_cc(condition) if (condition) { pc = r16(sp); sp += 2; cycles(20); } else { ipc(1); cycles(8) } ei_di(); ints()
+#define op_ret_cc(condition) if (condition) { pc = r16(sp); sp += 2; cycles(20); } else { ipc(1); cycles(8); } ei_di(); ints()
 void op_ret_nz() { op_ret_cc(!(f & FLAG_Z)); }
 void op_ret_z() { op_ret_cc(f & FLAG_Z); }
 void op_ret_nc() { op_ret_cc(!(f & FLAG_C)); }
@@ -722,14 +745,10 @@ void op_halt() {
     int32_t sys_idle_cycles;
     ipc(1);
 
-
     do {
-        video_idle_cycles = video_get_idle_cycle_count();
-        sys_idle_cycles = sys_get_idle_cycle_count();
-        cycles_to_idle = MIN(sys_idle_cycles, video_idle_cycles);
-        sys_cycles_idle(cycles_to_idle);
-        video_cycles(cycles_to_idle);
+        cycles(4);
     } while (!SYS_IF);
+
     ei_di();
     ints();
 }

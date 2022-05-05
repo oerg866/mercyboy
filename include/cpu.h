@@ -44,7 +44,8 @@ extern uint8_t      cpu_ie;
 extern uint8_t      cpu_ei_pending;
 extern uint8_t      cpu_di_pending;
 
-extern uint8_t      cpu_halted;
+extern uint32_t     cpu_idle_cycles_max;
+extern uint32_t     cpu_idle_cycles;
 
 // CPU.C
 
