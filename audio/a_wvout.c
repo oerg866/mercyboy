@@ -16,10 +16,9 @@ typedef PCMWAVEFORMAT WAVEFORMAT_T;
 typedef WAVEFORMATEX WAVEFORMAT_T;
 #endif
 
-//#include "trace.h"
 #include "audio.h"
 #include "ringbuf.h"
-#include "trace.h"
+#include "console.h"
 
 
 #define BUFFER_COUNT 4
@@ -149,14 +148,14 @@ audio_buffer_status a_waveout_play_buffer(uint8_t *buffer, uint32_t length) {
         header = &s_wavehdrs[s_write_index];
 
         // Wait until next buffer is free
-
+#if !defined(BENCHMARK)
         do {
             EnterCriticalSection(&s_lock);
             tmp = header->dwFlags;
             LeaveCriticalSection(&s_lock);
             yield();
         } while (tmp != WHDR_PREPARED);
-
+#endif
 
         // Get bytes left in this buffer.
 

@@ -7,6 +7,7 @@
 #include "compat.h"
 #include "video.h"
 #include "trace.h"
+#include "console.h"
 
 /*
  *  Video Backend Implementation for GDI Win16/32 (for very old systems. Or people who like GDI I guess :P)
@@ -78,7 +79,6 @@ static char s_fps_text[256];
 void doFPScount() {
 
 #ifndef __WIN16__
-    FILETIME tmp_time;
     uint32_t current_time = GetTickCount ();
     double fps;
 
